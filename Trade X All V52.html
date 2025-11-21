@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trade-X Dynamischer Handelsplatz 5.5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.4.0/chartjs-plugin-annotation.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-panel: #1e293b;
+            --text-light: #f1f5f9;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --shadow-xl: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            background: linear-gradient(135deg, var(--bg-main) 0%, #1e293b 50%, #334155 100%);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            overscroll-behavior: none;
+            touch-action: manipulation;
+            overflow-y: hidden; /* Desktop: no body scroll */
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            transition: min-height 0.3s ease;
+        }
+        .tile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .resource-icon {
+            font-size: 1.8rem; /* Default for expert mode */
+            line-height: 1;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+        .price-display {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .price-display:hover {
+            transform: scale(1.03);
+            box-shadow: var(--shadow-xl);
+        }
+        .price-up { color: var(--accent-red); text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); animation: priceUpPulse 1s ease-out; }
+        .price-down { color: var(--accent-green); text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); animation: priceDownPulse 1s ease-out; }
+        @keyframes priceUpPulse { 50% { transform: scale(1.08); } }
+        @keyframes priceDownPulse { 50% { transform: scale(0.97); } }
+        .event-banner { animation: slideInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform: translateY(-120%); }
+        .event-banner-out { animation: slideOutUp 0.6s ease-in forwards; }
+        @keyframes slideInDown { from { transform: translateY(-120%) scale(0.8); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes slideOutUp { from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(-120%) scale(0.8); opacity: 0; } }
+        .trade-button { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; padding: 0.75rem 0.5rem; }
+        .trade-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); }
+        .trade-button:active:not(:disabled) { transform: translateY(0); transition: all 0.1s ease; }
+        .trade-button:disabled { cursor: not-allowed; opacity: 0.4; }
+        .selected-trade { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.7), 0 0 20px rgba(59, 130, 246, 0.4); transform: scale(1.05); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .floating-element { animation: float 6s ease-in-out infinite; }
+        @keyframes float { 50% { transform: translateY(-10px); } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #64748b, #475569); border-radius: 10px; }
+        .modal-backdrop { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.7); }
+        .stats-card { background: linear-gradient(135deg, rgba(51, 65, 85, 0.8), rgba(30, 41, 59, 0.9)); border: 1px solid rgba(148, 163, 184, 0.2); }
+        .loading-spinner { border: 3px solid rgba(59, 130, 246, 0.3); border-radius: 50%; border-top: 3px solid var(--accent-blue); width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .scrollable-content { overflow-y: auto; }
+        
+        /* Verbesserte Tab-Button Styles */
+        .tab-button {
+            transition: all 0.2s ease;
+            border: none;
+            outline: none;
+        }
+        .tab-button.active {
+            background-color: var(--accent-blue) !important;
+            color: white !important;
+        }
+        .tab-button:not(.active) {
+            background-color: #334155 !important;
+            color: #94a3b8 !important;
+        }
+        .tab-button:hover:not(.active) {
+            background-color: #475569 !important;
+            color: #e2e8f0 !important;
+        }
+        
+        /* NEW: Help Modal Tabs */
+        .help-tab-button {
+            background-color: transparent;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            color: #94a3b8;
+        }
+        .help-tab-button.active { border-bottom: 2px solid var(--accent-blue); color: white; }
+        
+        .control-btn { background-color: #334155; border: 1px solid #475569; }
+        .control-btn:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; }
+        
+        .tile-container.collapsed { min-height: auto; }
+        [data-event-handler].disabled { pointer-events: none; opacity: 0.6; cursor: not-allowed; }
+
+        /* Mode Toggle Styles */
+        .expert-only { transition: all 0.3s ease; }
+        .basis-mode .expert-only { display: none !important; }
+        .basis-only { display: block; } /* Default visible */
+        .expert-mode .basis-only { display: none !important; }
+
+        .unavailable-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border-radius: 0.5rem;
+        }
+
+        /* Resource Icon Size based on mode */
+        body.basis-mode .resource-icon {
+            font-size: 1.5rem; /* Smaller for basis mode */
+        }
+        body.expert-mode .resource-icon {
+            font-size: 1.8rem; /* Default for expert mode */
+        }
+        @media (min-width: 1024px) {
+            body.expert-mode .resource-icon {
+                font-size: 2rem; /* Desktop size for expert mode */
+            }
+        }
+
+        /* Mobile Layout */
+        .main-grid {
+            height: calc(100vh - 40px - 1rem); /* 40px for top notice, 1rem for body padding */
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            overflow-y: auto; /* Make main grid scrollable on mobile */
+            padding-bottom: 0.5rem; /* Add some padding at the bottom */
+        }
+        
+        /* NEW: Mobile Chart Visibility Fix */
+        @media (max-width: 1023px) {
+            #insights-panel {
+                height: 300px;
+                display: flex;
+                flex-direction: column;
+            }
+            #insights-panel > .glass-panel {
+                flex: 1;
+                min-height: 0;
+            }
+        }
+
+        /* Steuerung panel collapse on desktop */
+        @media (min-width: 1024px) {
+            body { overflow-y: hidden; } /* Desktop: no body scroll */
+            .main-grid {
+                display: grid;
+                gap: 1rem;
+                grid-template-columns: minmax(250px, 20%) 1fr 1fr;
+                grid-template-rows: 1fr 1fr;
+                grid-template-areas:
+                    "steuerung markt analyse_top_right" /* events is top right */
+                    "steuerung handel events_bottom_right"; /* insights is bottom right */
+                height: 100%;
+                transition: grid-template-columns 0.3s ease-in-out;
+                overflow-y: hidden; /* Desktop: no main-grid scroll */
+                padding-bottom: 0;
+            }
+            .main-grid.collapsed {
+                grid-template-columns: 60px 1fr;
+            }
+            #steuerung-panel { grid-area: steuerung; }
+            #steuerung-panel.collapsed .tile-header h2 {
+                display: none; 
+            }
+            #marktpreise-panel { grid-area: markt; display:flex; flex-direction:column; }
+            #handelsinterface-panel { grid-area: handel; display:flex; flex-direction:column; }
+            
+            .expert-mode .main-grid {
+                grid-template-columns: minmax(250px, 20%) 1fr 1fr;
+                grid-template-rows: 1fr 1fr;
+                grid-template-areas:
+                    "steuerung markt analyse_top_right"
+                    "steuerung handel events_bottom_right"; 
+            }
+            .expert-mode .main-grid.collapsed {
+                grid-template-columns: 60px 1fr 1fr;
+            }
+            #insights-panel { grid-area: analyse_top_right; } 
+            #events-panel { grid-area: events_bottom_right; }
+        }
+
+        @media (min-width: 1024px) {
+             #insights-panel {
+                 display: flex;
+                 flex-direction: column;
+                 gap: 1rem;
+             }
+             #insights-panel > .glass-panel {
+                 min-height: 0;
+                 flex: 1;
+             }
+             #insights-panel .scrollable-content {
+                 flex: 1;
+                 min-height: 0;
+             }
+        }
+    </style>
+</head>
+<body class="p-2 lg:p-4">
+    <!-- Allgemeiner Hinweis -->
+    <div class="fixed top-0 left-0 right-0 z-50 p-2 text-white text-xs text-center font-bold" style="background-color: #1a202c; border-bottom: 2px solid #2d3748;">
+        Trade-X Companion APP
+    </div>
+
+    <div class="main-grid w-full" style="margin-top: 40px;">
+
+        <!-- Steuerung -->
+        <div id="steuerung-panel" class="col-span-1 lg:row-span-1 glass-panel rounded-xl p-3 tile-container">
+            <div class="tile-header">
+                <h2 class="text-lg font-bold gradient-text">⚙️ Steuerung</h2>
+                <button id="collapse-btn" class="control-btn collapse-btn text-lg font-bold w-8 h-8 rounded-full" title="Einklappen">
+                    <svg xmlns="http://www.w.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+            </div>
+            <div class="flex-grow min-h-0 overflow-y-auto pr-1 tile-content">
+                <div class="mb-2">
+                    <label class="text-xs text-gray-400">Spielmodus:</label>
+                    <select id="mode-selector" class="glass-panel text-white rounded-lg p-2 w-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="basis">🟢 Einfach</option>
+                        <option value="expert">🔴 Vollständig</option>
+                    </select>
+                </div>
+
+                <div class="mb-3 basis-only">
+                    <label for="basis-fee-selector" class="text-xs text-gray-400">Grundgebühr pro Handel:</label>
+                    <select id="basis-fee-selector" class="glass-panel text-white rounded-lg p-2 w-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="1">1 Karte</option>
+                        <option value="2" selected>2 Karten</option>
+                        <option value="3">3 Karten</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Die festen Kosten pro Tausch. Die Gesamtkosten ergeben sich aus: <b class="text-gray-400">Gebühr + 1 Handelskarte + Preisdifferenz</b>.</p>
+                </div>
+
+                <div class="expert-only">
+                    <div class="grid grid-cols-1 gap-2 mb-2">
+                        <div class="reset-btn-wrapper flex flex-col">
+                             <label class="text-xs text-gray-400">Neustart:</label>
+                            <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-2 rounded-lg text-sm transition-transform active:scale-95 h-full">Spiel zurücksetzen</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="text-xs text-gray-400">Ressourcen-Set:</label>
+                        <select id="resource-set-selector" class="glass-panel text-white rounded-lg p-2 w-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="set_4">Klassisch (4)</option>
+                            <option value="set_5" selected>Normal (5)</option>
+                            <option value="set_8">Erweitert (8)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="start-month-selector" class="text-xs text-gray-400">Start-Monat:</label>
+                        <select id="start-month-selector" class="glass-panel text-white rounded-lg p-2 w-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">Januar</option>
+                            <option value="2">Februar</option>
+                            <option value="3">März</option>
+                            <option value="4">April</option>
+                            <option value="5">Mai</option>
+                            <option value="6">Juni</option>
+                            <option value="7">Juli</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">Oktober</option>
+                            <option value="11">November</option>
+                            <option value="12">Dezember</option>
+                        </select>
+                    </div>
+
+                    <select id="economic-system-selector" class="glass-panel text-white rounded-lg p-2 mb-2 w-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500" title="Wähle das Wirtschaftssystem. Dies kann jederzeit geändert werden und beeinflusst Steuern, Boni und Preisstabilität.">
+                        <option value="free_market">🔥 Freier Markt</option>
+                        <option value="social_market">🤝 Soziale MW</option>
+                        <option value="planned_economy">⚖️ Planwirtschaft</option>
+                    </select>
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-400">Markteinfluss:</label>
+                        <input type="range" id="market-influence-slider" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" min="0" max="2" step="0.1" value="0.5" title="Bestimmt, wie stark deine Trades die Preise beeinflussen (0x = kein Einfluss, 2x = starker Einfluss).">
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>Niedrig</span>
+                            <span id="influence-value">0.5x</span>
+                            <span>Hoch</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="text-xs text-gray-400">Marktvolatilität:</label>
+                        <input type="range" id="market-volatility-slider" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" min="0" max="1" step="0.05" value="0.5" title="Bestimmt, wie stark zufällige Schwankungen die Preise beeinflussen.">
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>Niedrig (0x)</span>
+                            <span id="volatility-value">0.5x</span>
+                            <span>Hoch (1x)</span>
+                        </div>
+                    </div>
+
+                    <div id="system-details" class="text-xs text-gray-300 mb-2 stats-card rounded-lg p-2"></div>
+                </div>
+                
+                <div class="grid grid-cols-4 gap-2 pt-2 mt-4">
+                    <button id="undo-btn" class="control-btn p-2 rounded-lg text-lg font-bold disabled:opacity-50" title="Rückgängig (Ctrl+Z)">↶</button>
+                    <button id="redo-btn" class="control-btn p-2 rounded-lg text-lg font-bold disabled:opacity-50" title="Wiederholen (Ctrl+Y)">↷</button>
+                    <button id="help-btn" class="control-btn p-2 rounded-lg text-lg font-bold" title="Hilfe">?</button>
+                    <button id="fullscreen-btn" class="control-btn p-2 rounded-lg flex items-center justify-center hover:bg-slate-500 transition-colors" title="Vollbild (F11)">
+                        <svg id="fullscreen-icon-open" xmlns="http://www.w.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                        <svg id="fullscreen-icon-close" xmlns="http://www.w.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="insights-panel" class="expert-only col-span-1 lg:row-span-1">
+            <div class="glass-panel rounded-xl p-3 flex flex-col">
+                <div class="tile-header" style="cursor: default;">
+                    <h2 class="text-lg font-bold mb-0 gradient-text">📋 Analyse</h2>
+                </div>
+                <div class="flex mb-2 flex-shrink-0">
+                    <button id="tab-history" class="tab-button active text-sm font-bold px-3 py-1 rounded-l-lg w-1/2">Historie</button>
+                    <button id="tab-chart" class="tab-button text-sm font-bold px-3 py-1 rounded-r-lg w-1/2">Chart</button>
+                </div>
+                <div class="relative flex-1 min-h-0">
+                    <div id="tab-content-history" class="tab-content absolute inset-0 text-xs scrollable-content pr-1"></div>
+                    <div id="tab-content-chart" class="tab-content hidden absolute inset-0 stats-card rounded-lg p-1">
+                        <canvas id="price-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="events-panel" class="expert-only tile-container col-span-1 lg:row-span-1 glass-panel rounded-xl p-3">
+            <div class="tile-header">
+                <h2 class="text-lg font-bold gradient-text">⚡ Events</h2>
+                <button class="control-btn collapse-btn text-lg font-bold w-8 h-8 rounded-full" title="Einklappen">−</button>
+            </div>
+            <div class="tile-content flex flex-col flex-grow">
+                <div id="events-content" data-event-handler class="flex-grow text-xs scrollable-content pr-1"></div>
+                <div class="stats-card rounded-lg p-2 text-xs mt-auto">
+                    <div class="flex justify-between items-center"><span class="text-blue-300">🔮 Prognose:</span><span id="forecast-text" class="text-gray-300">Stabil</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="marktpreise-panel" class="tile-container col-span-1 lg:col-span-2 lg:row-span-1 glass-panel rounded-xl p-3">
+            <div class="tile-header" style="justify-content: center;">
+                <h2 class="text-lg font-bold text-center gradient-text">📈 Live-Marktpreise</h2>
+            </div>
+            <div class="tile-content flex flex-col flex-grow justify-center">
+                
+                <div id="price-container" class="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center mb-2"></div>
+                
+                <div class="flex flex-col lg:flex-row gap-3 mt-3">
+                    <div id="game-state-display-panel" class="stats-card rounded-lg p-2 flex-1 expert-only">
+                        <h3 class="text-sm font-bold mb-2 text-blue-300">📊 Spielstand</h3>
+                        <div class="flex items-center justify-around mb-2 text-center">
+                            <div>
+                                <span class="text-sm font-bold">Runde/Monat</span>
+                                <span id="round-counter-market" class="block text-xl font-black gradient-text">1</span>
+                            </div>
+                            <div id="season-display">
+                                <!-- Content will be injected by JS -->
+                            </div>
+                        </div>
+                        <button id="end-round-btn-market" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-transform active:scale-95 floating-element w-full" title="Beendet die aktuelle Runde und aktualisiert die Marktpreise. Passiert automatisch nach einem Handel.">Runde beenden</button>
+                    </div>
+
+                    <div id="trading-insights-wrapper" class="flex-1">
+                        <!-- Content will be dynamically loaded here by JS -->
+                    </div>
+                </div>
+
+                <div id="seasonal-chart-container" class="expert-only stats-card rounded-lg p-2 mt-3" style="min-height: 160px;">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="text-sm font-bold text-blue-300">📅 Saisonale Einflüsse</h3>
+                        <button id="toggle-seasonal-chart-btn" class="control-btn text-lg font-bold w-6 h-6 rounded-full flex items-center justify-center p-0" title="Einklappen">−</button>
+                    </div>
+                    <div id="seasonal-chart-content" class="relative w-full" style="height: 120px;">
+                        <canvas id="seasonal-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="expert-only text-center stats-card rounded-lg p-2 mt-auto">
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div id="volatility-container"><span class="text-gray-400">Volatilität:</span> <b id="volatility-status" class="ml-1">NORMAL</b></div>
+                        <div id="recommendation-container"><span class="text-gray-400">Tipp:</span> <b id="trade-recommendation" class="ml-1">HALTEN</b></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="handelsinterface-panel" class="col-span-1 lg:col-span-2 lg:row-span-1 glass-panel rounded-xl p-4">
+            <div class="tile-header flex justify-between items-center">
+                <h2 class="text-2xl font-bold gradient-text">💰 Handels-Interface</h2>
+            </div>
+            <div class="flex flex-col flex-grow justify-center items-center">
+                <div class="flex items-center justify-center gap-4 lg:gap-8 w-full mb-4">
+                    <div class="w-2/5 text-center">
+                        <label class="block mb-3 font-bold text-lg text-red-300">❌ Ich gebe:</label>
+                        <div id="sell-options" class="grid grid-cols-3 gap-2 lg:gap-3"></div>
+                    </div>
+                    <div class="text-4xl font-bold text-gray-400 floating-element">⚡</div>
+                    <div class="w-2/5 text-center">
+                        <label class="block mb-3 font-bold text-lg text-green-300">✅ Ich erhalte:</label>
+                        <div id="buy-options" class="grid grid-cols-3 gap-2 lg:gap-3"></div>
+                    </div>
+                </div>
+                
+                <div id="trade-summary" class="mt-4 text-center h-8 text-lg font-medium"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlays -->
+    <div id="event-banner-container" class="absolute top-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
+    <div id="modal-container">
+        <div id="trade-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+            <div class="glass-panel rounded-2xl p-8 w-11/12 max-w-md text-center transform transition-all scale-95 opacity-0">
+                <div class="text-4xl mb-4">⚡</div>
+                <h3 class="text-2xl font-bold mb-4 gradient-text">Handel bestätigen</h3>
+                <p id="modal-trade-details" class="mb-8 text-lg text-gray-300"></p>
+                <div class="flex justify-center space-x-4">
+                    <button id="confirm-trade-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl transition-transform hover:scale-105">✅ Bestätigen</button>
+                    <button id="cancel-trade-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition-transform hover:scale-105">❌ Abbrechen</button>
+                </div>
+            </div>
+        </div>
+        <div id="info-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+            <div class="glass-panel rounded-2xl p-8 w-11/12 max-w-2xl text-center transform transition-all scale-95 opacity-0">
+                <div id="info-modal-icon" class="text-5xl mb-4"></div>
+                <h3 id="info-modal-title" class="text-2xl font-bold mb-4 gradient-text"></h3>
+                <div id="info-modal-body" class="mb-8 text-base text-gray-300 space-y-2 text-left"></div>
+                <button id="close-info-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-transform hover:scale-105">💡 Verstanden</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- CONFIGURATION ---
+        const GOLD_RESOURCE_KEY = 'muenze';
+        const ALL_RESOURCES = {
+            bauholz: { name: 'Bauholz', icon: '🌲', color: '#228B22', rarity: 1.0 },
+            fleece: { name: 'Fleece', icon: '🐑', color: '#90EE90', rarity: 1.0 },
+            weizen: { name: 'Weizen', icon: '🌾', color: '#FFD700', rarity: 1.0 },
+            ziegel: { name: 'Ziegel', icon: '🧱', color: '#B22222', rarity: 1.0 },
+            metall: { name: 'Metall', icon: '⛏️', color: '#708090', rarity: 1.2 }, 
+            tuch: { name: 'Seide', icon: '🧵', color: '#4682B4', rarity: 1.5 },
+            papier: { name: 'Papier', icon: '📜', color: '#F5DEB3', rarity: 1.5 },
+            [GOLD_RESOURCE_KEY]: { name: 'Münze', icon: '🪙', color: '#FFC0CB', rarity: 1.5 },
+        };
+
+        const RESOURCE_SETS = {
+            set_4: { name: 'Klassisch (4)', resources: ['bauholz', 'weizen', 'fleece', 'ziegel'] },
+            set_5: { name: 'Normal (5)', resources: ['bauholz', 'fleece', 'weizen', 'ziegel', 'metall'] },
+            set_8: { name: 'Erweitert (8)', resources: ['bauholz', 'fleece', 'weizen', 'ziegel', 'metall', 'tuch', 'papier', GOLD_RESOURCE_KEY] }
+        };
+
+        const BASIS_RESOURCES = {
+            bauholz: ALL_RESOURCES.bauholz,
+            fleece: ALL_RESOURCES.fleece,
+            weizen: ALL_RESOURCES.weizen,
+            ziegel: ALL_RESOURCES.ziegel,
+            metall: ALL_RESOURCES.metall,
+        };
+
+        function getResourcesForSet(setId) {
+            const resourceKeys = RESOURCE_SETS[setId].resources;
+            const result = {};
+            for (const key of resourceKeys) {
+                result[key] = ALL_RESOURCES[key];
+            }
+            return result;
+        }
+        
+        const CONFIG = {
+            GAME: {
+                MAX_HISTORY_STEPS_BASIS: 20,
+                MAX_HISTORY_STEPS_EXPERT: 20,
+                MAX_TRADE_HISTORY: 30,
+                MIN_RESOURCE_PRICE_BASIS: 1,
+                MAX_RESOURCE_PRICE_BASIS: 8,
+                PRICE_HISTORY_LENGTH_BASIS: 10,
+                PRICE_HISTORY_LENGTH_EXPERT: 10,
+            },
+            UI: {
+                CHART_UPDATE_DEBOUNCE: 100,
+                MODAL_ANIMATION_DURATION: 200,
+                BANNER_DISPLAY_TIME_FACTOR: 1500,
+            },
+            SEASONS: {
+                fruehling: { name: 'Frühling', icon: '🌸', effects: { weizen: +1.0, fleece: -0.5 } },
+                sommer:    { name: 'Sommer',   icon: '☀️', effects: { ziegel: +1.0, bauholz: -1.0 } },
+                herbst:    { name: 'Herbst',   icon: '🍂', effects: { weizen: -1.5, metall: +0.5 } },
+                winter:    { name: 'Winter',   icon: '❄️', effects: { bauholz: +1.5, fleece: +1.0 } }
+            },
+            ECONOMIC_SYSTEMS: { 
+                free_market: { name: "Freier Markt", minPrice: 1.0, maxPrice: 8.0, volatility: 2.5, description: "🔥 Ein unregulierter Markt mit starken Preisschwankungen.", handLimit: null, hasSharedPool: false, bureaucracyCost: 0, siegpunkte: 10, calculateTax: () => 0 }, 
+                social_market: { name: "Soziale Marktwirtschaft", minPrice: 1.0, maxPrice: 8.0, volatility: 1.2, description: "🤝 Ausgewogenes System", handLimit: 8, hasSharedPool: true, bureaucracyCost: 1, siegpunkte: 9, calculateTax: () => 1 }, 
+                planned_economy: { name: "Planwirtschaft", minPrice: 1.0, maxPrice: 8.0, volatility: 0.8, description: "⚖️ Kollektives Wirtschaften", handLimit: 3, hasSharedPool: true, bureaucracyCost: 2, siegpunkte: 8, calculateTax: (bp, ga, getAmount) => Math.max(Math.ceil(getAmount * 0.5), 2) } 
+            },
+            EVENTS: { 
+                duerre: { name: "Große Dürre", type: 'global', duration: 4, modifier: (res, p) => res === 'weizen' ? p + 2.5 : p + 0.5, chance: 0.8, banner: 'warning', description: "☀️ Ernten vertrocknen!", story: "Seit Monaten kein Regen! Die Felder verdorren, Brunnen trocknen aus. Getreide wird zur Mangelware, während andere Rohstoffe durch die allgemeine Knappheit ebenfalls teurer werden.", effectText: "🌾 <b>Getreide:</b> +2.5, <b>Andere:</b> +0.5" }, 
+                unwetter: { name: "Unwetter", type: 'global', duration: 3, modifier: (res, p) => ['bauholz', 'fleece'].includes(res) ? p + 2 : p - 0.3, chance: 0.9, banner: 'warning', description: "⛈️ Stürme!", story: "Schwere Stürme verwüsten die Wälder und Weiden! Bäume werden entwurzelt, Schafe suchen Schutz. Die Holz- und Wollproduktion bricht ein.", effectText: "🌲/🐑 <b>Holz/Wolle:</b> +2.0, <b>Andere:</b> -0.3" }, 
+                industrie: { name: "Industrie-Revolution", type: 'global', duration: 5, modifier: (res, p) => ['metall', 'ziegel'].includes(res) ? p - 1.5 : p + 0.5, chance: 0.7, banner: 'info', description: "🏭 Maschinen brauchen Rohstoffe!", story: "Die Dampfmaschine verändert alles! Neue Fabriken entstehen überall und verschlingen riesige Mengen an Erz und Lehm.", effectText: "⛏️/🧱 <b>Metall/Ziegel:</b> -1.5, <b>Andere:</b> +0.5" }, 
+                erntefest: { name: "Erntefest", type: 'global', duration: 2, modifier: (res, p) => ['weizen', 'fleece'].includes(res) ? p - 1.5 : p, chance: 1, banner: 'success', description: "🎉 Reiche Ernte!", story: "Ein Jahr des Überflusses! Die Ernte war so reich wie seit Jahrzehnten nicht. Getreide und Wolle sind im Überfluss vorhanden.", effectText: "🌾/🐑 <b>Getreide/Wolle:</b> -1.5" }, 
+                goldrausch: { name: "Goldrausch", type: 'global', duration: 4, modifier: (res, p) => res === 'metall' ? p + 1 : p, chance: 0.6, banner: 'warning', description: "💰 Metall-Preise explodieren!", story: "Gold entdeckt in den Bergen! Tausende Glücksritter strömen herbei und treiben die Nachfrage nach Erz in ungeahnte Höhen.", effectText: "⛏️ <b>Metall:</b> +1.0" }, 
+                handelspest: { name: "Handelspest", type: 'global', duration: 3, tax: 2, modifier: (r, p) => p + 0.5, chance: 0.5, banner: 'critical', description: "🦠 Hohe Steuern!", story: "Eine mysteriöse Krankheit grassiert unter den Händlern! Quarantäne-Maßnahmen und Desinfektionskosten verteuern jeden Transport.", effectText: "+2 Steuerkarten pro Handel, Alle Preise +0.5" }, 
+                friedenszeit: { name: "Friedenszeit", type: 'global', duration: 3, modifier: (res, p) => p - 0.8, chance: 1, banner: 'success', description: "🌈 Handel blüht!", story: "Endlich Frieden! Die Kriege sind vorbei, die Handelswege wieder sicher. Überall herrscht Optimismus, der Handel blüht wie nie zuvor.", effectText: "Alle Preise -0.8" }, 
+                arbeiterstreik: { name: "Arbeiterstreik", type: 'global', duration: 2, modifier: (res, p) => ['ziegel', 'bauholz'].includes(res) ? p + 2.5 : p, chance: 0.7, banner: 'warning', description: "🔨 Material wird knapp!", story: "Die Arbeiter in den Steinbrüchen und Sägewerken streiken für bessere Löhne! Die Produktion von Lehm und Holz stockt.", effectText: "🧱/🌲 <b>Ziegel/Holz:</b> +2.5" }, 
+                marktcrash: { name: "Marktcrash", type: 'shock', duration: 1, modifier: (res, p) => p * 0.4, chance: 0.03, banner: 'critical', description: "💥 Preise im freien Fall!", story: "Panik an den Börsen! Gerüchte über eine bevorstehende Wirtschaftskrise lassen die Preise ins Bodenlose fallen.", effectText: "Alle Preise fallen auf 40%" }, 
+                spekulationsblase: { name: "Spekulationsblase", type: 'shock', duration: 2, modifier: (res, p, target) => res === target ? p * 4 : p, chance: 0.03, banner: 'critical', description: "📈 Eine Ressource explodiert!", story: "Spekulanten haben eine bestimmte Ressource als 'das Gold der Zukunft' ausgerufen! Irrationale Käufe treiben den Preis in astronomische Höhen.", effectText: "Preis einer zufälligen Ressource x4" }, 
+                bankenkrise: { name: "Bankenkrise", type: 'shock', duration: 4, tax: 3, modifier: (r, p) => p + 1, chance: 0.02, banner: 'critical', description: "🏦 Extrem hohe Steuern!", story: "Die größte Handelsbank der Region ist zusammengebrochen! Der Staat muss eingreifen und verhängt eine Notsteuer auf alle Transaktionen.", effectText: "+3 Steuerkarten pro Handel, Alle Preise +1.0" }, 
+                lieferengpass: { name: "Lieferengpass", type: 'mini', duration: 1, modifier: (res, p, target) => res === target ? p + 1.5 : p, chance: 0.15, banner: 'info', description: "🚚 Lieferprobleme!", story: "Probleme in der Lieferkette! Ein wichtiger Transportweg ist blockiert, was zu Verzögerungen bei einer bestimmten Ware führt.", effectText: "Preis einer zufälligen Ressource +1.5" }, 
+                edelsteinfund: { name: "Reicher Fund", type: 'mini', duration: 1, modifier: (res, p, target) => res === target ? p - 1.2 : p, chance: 0.12, banner: 'success', description: "💎 Überraschende Funde!", story: "Unerwarteter Glücksfund! Entdecker haben ein riesiges Vorkommen einer bestimmten Ressource gefunden.", effectText: "Preis einer zufälligen Ressource -1.2" }, 
+                marktfest: { name: "Marktfest", type: 'mini', duration: 1, tax: -1, modifier: (r, p) => p - 0.3, chance: 0.1, banner: 'success', description: "🎪 Gute Preise!", story: "Das große Jahresmarktfest! Händler aus aller Welt kommen zusammen, die Konkurrenz ist groß und die Steuern werden reduziert.", effectText: "-1 Steuerkarte pro Handel, Alle Preise -0.3" }, 
+                piratenangriff: { name: "Piratenüberfall", type: 'mini', duration: 2, tax: 1, modifier: (r, p) => p + 0.8, chance: 0.08, banner: 'warning', description: "🏴‍☠️ Händler erpresst!", story: "Piraten terrorisieren die Handelswege! Jeder Transport muss nun bewacht werden, was die Kosten in die Höhe treibt.", effectText: "+1 Steuerkarte pro Handel, Alle Preise +0.8" } 
+            },
+        };
+
+        class GameError extends Error {
+            constructor(message, type = 'GENERAL') {
+                super(message);
+                this.name = 'GameError';
+                this.type = type;
+            }
+        }
+
+        function handleGameError(error) {
+            console.error(error);
+            SoundManager.playSound('error');
+            switch(error.type) {
+                case 'TRADE_ERROR':
+                    UIManager.showInfoMessage("Handelsfehler", error.message, '⚠️');
+                    break;
+                case 'STATE_ERROR':
+                    UIManager.showInfoMessage("Zustandsfehler", `${error.message} Es wird empfohlen, das Spiel zurückzusetzen.`, '💥');
+                    break;
+                default:
+                    UIManager.showInfoMessage("Unerwarteter Fehler", error.message, '💥');
+            }
+        }
+
+        const debounce = (func, delay) => {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        };
+
+        const DOMElements = {
+            body: document.body,
+            mainGrid: document.querySelector('.main-grid'),
+            steuerungPanel: document.getElementById('steuerung-panel'),
+            collapseBtn: document.getElementById('collapse-btn'),
+            priceContainer: document.getElementById('price-container'), 
+            sellOptions: document.getElementById('sell-options'), 
+            buyOptions: document.getElementById('buy-options'), 
+            tradeSummary: document.getElementById('trade-summary'), 
+            tradingInsightsWrapper: document.getElementById('trading-insights-wrapper'),
+            tradeModal: document.getElementById('trade-modal'), 
+            modalTradeDetails: document.getElementById('modal-trade-details'), 
+            confirmTradeBtn: document.getElementById('confirm-trade-btn'), 
+            cancelTradeBtn: document.getElementById('cancel-trade-btn'), 
+            resetBtn: document.getElementById('reset-btn'), 
+            fullscreenBtn: document.getElementById('fullscreen-btn'), 
+            fullscreenIconOpen: document.getElementById('fullscreen-icon-open'), 
+            fullscreenIconClose: document.getElementById('fullscreen-icon-close'),
+            modeSelector: document.getElementById('mode-selector'),
+            basisFeeSelector: document.getElementById('basis-fee-selector'),
+            undoBtn: document.getElementById('undo-btn'),
+            redoBtn: document.getElementById('redo-btn'),
+            helpBtn: document.getElementById('help-btn'),
+            handelsinterfacePanel: document.getElementById('handelsinterface-panel'),
+            roundCounter: document.getElementById('round-counter-market'),
+            endRoundBtn: document.getElementById('end-round-btn-market'),   
+            systemSelector: document.getElementById('economic-system-selector'), 
+            systemDetails: document.getElementById('system-details'), 
+            activeEventsContainer: document.getElementById('events-content'), 
+            tradeHistory: document.getElementById('tab-content-history'), 
+            volatilityStatus: document.getElementById('volatility-status'), 
+            tradeRecommendation: document.getElementById('trade-recommendation'), 
+            forecastText: document.getElementById('forecast-text'), 
+            infoModal: document.getElementById('info-modal'), 
+            infoModalIcon: document.getElementById('info-modal-icon'), 
+            infoModalTitle: document.getElementById('info-modal-title'), 
+            infoModalBody: document.getElementById('info-modal-body'), 
+            closeInfoBtn: document.getElementById('close-info-btn'), 
+            marketInfluenceSlider: document.getElementById('market-influence-slider'), 
+            influenceValue: document.getElementById('influence-value'), 
+            marketVolatilitySlider: document.getElementById('market-volatility-slider'),
+            volatilityValue: document.getElementById('volatility-value'),
+            tabHistory: document.getElementById('tab-history'), 
+            tabChart: document.getElementById('tab-chart'), 
+            tabContentChart: document.getElementById('tab-content-chart'),
+            eventBannerContainer: document.getElementById('event-banner-container'),
+            volatilityContainer: document.getElementById('volatility-container'),
+            recommendationContainer: document.getElementById('recommendation-container'),
+            resourceSetSelector: document.getElementById('resource-set-selector'),
+            startMonthSelector: document.getElementById('start-month-selector'),
+            seasonDisplay: document.getElementById('season-display'),
+            seasonalChart: document.getElementById('seasonal-chart'),
+            seasonalChartContainer: document.getElementById('seasonal-chart-container'),
+            toggleSeasonalChartBtn: document.getElementById('toggle-seasonal-chart-btn'),
+            seasonalChartContent: document.getElementById('seasonal-chart-content'),
+        };
+
+        const ModeManager = {
+            currentMode: localStorage.getItem('tradingMode') || 'basis',
+            initializeModeToggle() {
+                DOMElements.modeSelector.addEventListener('change', (e) => this.toggleMode(e.target.value));
+                this.setMode(this.currentMode);
+            },
+            toggleMode(mode) {
+                if (this.currentMode === mode) return;
+                SoundManager.playSound('click');
+                this.currentMode = mode;
+                this.setMode(mode);
+                this.saveMode();
+                StateManager.resetGame();
+            },
+            setMode(mode) {
+                DOMElements.body.classList.remove('basis-mode', 'expert-mode');
+                DOMElements.body.classList.add(`${mode}-mode`);
+                DOMElements.modeSelector.value = mode;
+                this.updateModeUI();
+            },
+            updateModeUI() {
+                if (DOMElements.mainGrid) {
+                    DOMElements.mainGrid.style.display = 'none';
+                    DOMElements.mainGrid.offsetHeight;
+                    DOMElements.mainGrid.style.display = '';
+                }
+                if (this.currentMode === 'expert') {
+                    setTimeout(() => {
+                        UIManager.initChart();
+                        UIManager.initSeasonalChart();
+                        if (UIManager.debouncedUpdateChart) UIManager.debouncedUpdateChart();
+                    }, 100);
+                } else {
+                    if (UIManager.priceChart) {
+                        UIManager.priceChart.destroy();
+                        UIManager.priceChart = null;
+                    }
+                    if (UIManager.seasonalChart) {
+                        UIManager.seasonalChart.destroy();
+                        UIManager.seasonalChart = null;
+                    }
+                }
+            },
+            saveMode() {
+                localStorage.setItem('tradingMode', this.currentMode);
+            }
+        };
+
+        const StateManager = {
+            gameState: null,
+            init() { this.resetGame(); },
+            resetGame() {
+                SoundManager.playSound('reset');
+                const baseState = { history: [], historyIndex: -1, prices: {}, priceHistory: {}, marketPressure: {}, sharedPool: {} };
+                if (ModeManager.currentMode === 'basis') {
+                    this.gameState = { ...baseState, mode: 'basis', resources: BASIS_RESOURCES, basisTradeFee: parseInt(DOMElements.basisFeeSelector?.value || 2, 10) };
+                    CONFIG.GAME.MAX_HISTORY_STEPS = CONFIG.GAME.MAX_HISTORY_STEPS_BASIS;
+                } else {
+                    const resourceSetId = DOMElements.resourceSetSelector?.value || 'set_5';
+                    const startMonth = parseInt(DOMElements.startMonthSelector?.value || 1, 10);
+                    this.gameState = { ...baseState, mode: 'expert', round: startMonth, season: 'fruehling', resourceSet: resourceSetId, resources: getResourcesForSet(resourceSetId), economicSystem: DOMElements.systemSelector?.value || 'free_market', activeEvents: [], totalTrades: 0, tradeHistory: [], lastGlobalEventRound: 0, sessionTrades: 0, sessionTotalGive: 0, sessionTotalGet: 0, unavailableResources: [] };
+                    CONFIG.GAME.MAX_HISTORY_STEPS = CONFIG.GAME.MAX_HISTORY_STEPS_EXPERT;
+                    GameEngine.updateSeason(); // Set initial season based on start month
+                }
+                Object.keys(this.gameState.resources).forEach(key => { 
+                    this.gameState.prices[key] = 4.0;
+                    this.gameState.priceHistory[key] = [4.0]; 
+                    if (ModeManager.currentMode === 'expert') {
+                        this.gameState.marketPressure[key] = 0;
+                        this.gameState.sharedPool[key] = 0;
+                    }
+                });
+                UIManager.updateResourceUI(this.gameState.resources);
+                UIManager.resetTradeSelection();
+                this.saveState(); 
+                UIManager.updateAllUI();
+            },
+            saveState() {
+                try {
+                    if (this.gameState.historyIndex < this.gameState.history.length - 1) {
+                        this.gameState.history = this.gameState.history.slice(0, this.gameState.historyIndex + 1);
+                    }
+                    const snapshot = JSON.parse(JSON.stringify(this.gameState));
+                    delete snapshot.history;
+                    delete snapshot.historyIndex;
+                    this.gameState.history.push(snapshot);
+                    if (this.gameState.history.length > CONFIG.GAME.MAX_HISTORY_STEPS) this.gameState.history.shift();
+                    this.gameState.historyIndex = this.gameState.history.length - 1;
+                    UIManager.updateUndoRedoButtons();
+                } catch (err) {
+                    throw new GameError(`Fehler beim Speichern des Spielzustands: ${err.message}`, 'STATE_ERROR');
+                }
+            },
+            loadState(snapshot) {
+                const history = this.gameState.history;
+                const historyIndex = this.gameState.historyIndex;
+                this.gameState = JSON.parse(JSON.stringify(snapshot));
+                this.gameState.history = history;
+                this.gameState.historyIndex = historyIndex;
+                UIManager.updateResourceUI(this.gameState.resources);
+                UIManager.updateAllUI();
+            },
+            undo() {
+                if (this.gameState.historyIndex > 0) {
+                    SoundManager.playSound('undo');
+                    this.gameState.historyIndex--;
+                    this.loadState(this.gameState.history[this.gameState.historyIndex]);
+                    UIManager.updateUndoRedoButtons();
+                }
+            },
+            redo() {
+                if (this.gameState.historyIndex < this.gameState.history.length - 1) {
+                    SoundManager.playSound('redo');
+                    this.gameState.historyIndex++;
+                    this.loadState(this.gameState.history[this.gameState.historyIndex]);
+                    UIManager.updateUndoRedoButtons();
+                }
+            }
+        };
+
+        const SoundManager = {
+            synths: {},
+            initializeSynths() {
+                try {
+                    const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.4 }).toDestination();
+                    this.synths = {
+                        kaching: new Tone.PolySynth(Tone.FMSynth, { harmonicity: 8, modulationIndex: 2, volume: -8, envelope: { attack: 0.01, decay: 0.3, release: 0.4 }, modulationEnvelope: { attack: 0.01, decay: 0.2, release: 0.2 } }).connect(reverb),
+                        click: new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 3, envelope: { attack: 0.001, decay: 0.15, release: 0.01 }, volume: -12 }).toDestination(),
+                        reset: new Tone.FMSynth({ harmonicity: 1.5, envelope: { attack: 0.01, decay: 0.5, release: 0.1 }, volume: -5 }).toDestination(),
+                        error: new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.05 }, volume: -5 }).connect(new Tone.BitCrusher(4).toDestination()),
+                        sweep: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, release: 0.1 }, volume: -20 }).connect(new Tone.AutoFilter("8n").toDestination().start()),
+                        undo: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, release: 0.1 }, volume: -20 }).connect(new Tone.AutoFilter("8n").toDestination().start()),
+                        redo: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, release: 0.1 }, volume: -20 }).connect(new Tone.AutoFilter("8n").toDestination().start()),
+                    };
+                } catch (e) { console.error("Audio-Context konnte nicht initialisiert werden:", e); }
+            },
+            async playSound(soundName) {
+                if (Tone.context.state !== 'running') { try { await Tone.start(); } catch (e) { console.error("Tone.js konnte nicht gestartet werden.", e); return; } }
+                if (!this.synths[soundName]) { console.warn(`Sound ${soundName} not found.`); return; }
+                try {
+                    const now = Tone.now();
+                    switch(soundName) {
+                        case 'kaching': this.synths.kaching.triggerAttackRelease(['E6', 'G#6'], '16n', now); break;
+                        case 'click': this.synths.click.triggerAttackRelease("C4", "32n", now); break;
+                        case 'reset': this.synths.reset.triggerAttack("G4", now); this.synths.reset.frequency.exponentialRampToValueAtTime("G2", now + 0.4); this.synths.reset.triggerRelease(now + 0.4); break;
+                        case 'error': this.synths.error.triggerAttackRelease("0.1", now); break;
+                        case 'undo': this.synths.sweep.filter.frequency.setValueAtTime(1200, now); this.synths.sweep.filter.frequency.exponentialRampToValueAtTime(300, now + 0.1); this.synths.sweep.triggerAttackRelease("0.1", now); break;
+                        case 'redo': this.synths.sweep.filter.frequency.setValueAtTime(300, now); this.synths.sweep.filter.frequency.exponentialRampToValueAtTime(1200, now + 0.1); this.synths.sweep.triggerAttackRelease("0.1", now); break;
+                    }
+                } catch (err) { console.error(`Fehler beim Abspielen des Sounds '${soundName}':`, err); }
+            }
+        };
+
+        const GameEngine = {
+            getRandomGaussian(min, max, sums = 3) {
+                let randSum = 0;
+                for (let i = 0; i < sums; i++) { randSum += Math.random(); }
+                const scaledRand = randSum / sums;
+                return min + scaledRand * (max - min);
+            },
+            calculateTradeOffer(sellRes, buyRes) {
+                return ModeManager.currentMode === 'basis' ? this.calculateBasisTradeOffer(sellRes, buyRes) : this.calculateExpertTradeOffer(sellRes, buyRes);
+            },
+            calculateBasisTradeOffer(sellRes, buyRes) {
+                const priceOfBuy = StateManager.gameState.prices[buyRes];
+                const priceOfSell = StateManager.gameState.prices[sellRes];
+                const basisTradeFee = StateManager.gameState.basisTradeFee;
+                const priceDifference = priceOfSell - priceOfBuy;
+                const bonusGet = Math.max(0, priceDifference);
+                const extraGive = Math.max(0, -priceDifference);
+                const amountToGive = basisTradeFee + 1 + extraGive;
+                const amountToGet = 1 + bonusGet;
+                return { amountToGive: Math.round(amountToGive), amountToGet: Math.round(amountToGet), tax: 0, taxEvents: [] };
+            },
+            calculateExpertTradeOffer(sellRes, buyRes) {
+                const priceHistoryBuy = StateManager.gameState.priceHistory[buyRes];
+                const priceHistorySell = StateManager.gameState.priceHistory[sellRes];
+                const priceOfBuy = priceHistoryBuy[priceHistoryBuy.length - 1];
+                const priceOfSell = priceHistorySell[priceHistorySell.length - 1];
+
+                if (typeof priceOfSell !== 'number' || typeof priceOfBuy !== 'number') return { amountToGive: 0, amountToGet: 0, tax: 0, taxEvents: [] };
+                
+                const roundedPriceDiff = Math.round(priceOfBuy - priceOfSell);
+                let amountToGive = Math.max(1, 1 + roundedPriceDiff);
+                let amountToGet = Math.max(1, 1 - roundedPriceDiff);
+                
+                const system = CONFIG.ECONOMIC_SYSTEMS[StateManager.gameState.economicSystem];
+                if (system.name === 'Soziale Marktwirtschaft') amountToGive += 1;
+                else if (system.name === 'Planwirtschaft') amountToGive += 2;
+
+                let totalTax = 0;
+                const taxEvents = [];
+                StateManager.gameState.activeEvents.forEach(activeEvent => {
+                    if (activeEvent.tax && activeEvent.tax > 0) {
+                        totalTax += activeEvent.tax;
+                        taxEvents.push({ name: activeEvent.name, tax: activeEvent.tax });
+                    }
+                });
+                
+                const finalAmountToGive = amountToGive + totalTax;
+
+                return { amountToGive: finalAmountToGive, amountToGet, tax: totalTax, taxEvents, baseAmount: amountToGive };
+            },
+            validateTradeOffer(sellRes, buyRes, amounts) {
+                if (!StateManager.gameState.resources[sellRes] || !StateManager.gameState.resources[buyRes]) throw new GameError('Ungültige Ressource ausgewählt.', 'TRADE_ERROR');
+                if (ModeManager.currentMode === 'expert' && StateManager.gameState.unavailableResources?.includes(buyRes)) throw new GameError('Die Ressource, die du erhalten möchtest, ist derzeit nicht auf dem Markt verfügbar.', 'TRADE_ERROR');
+                if (amounts.amountToGive <= 0 || amounts.amountToGet <= 0) throw new GameError('Ungültige Handelsmengen berechnet.', 'TRADE_ERROR');
+                return true;
+            },
+            executeTrade(sellRes, buyRes) {
+                try {
+                    const offer = this.calculateTradeOffer(sellRes, buyRes);
+                    this.validateTradeOffer(sellRes, buyRes, offer);
+                    StateManager.saveState(); 
+                    UIManager.closeModal(DOMElements.tradeModal);
+                    if (ModeManager.currentMode === 'basis') {
+                        SoundManager.playSound('kaching');
+                        this.executeBasisTrade(sellRes, buyRes);
+                    } else {
+                        SoundManager.playSound('kaching');
+                        this.executeExpertTrade(sellRes, buyRes, offer.amountToGive, offer.amountToGet);
+                    }
+                    UIManager.resetTradeSelection();
+                    UIManager.updateAllUI();
+                } catch (error) { handleGameError(error); }
+            },
+            executeBasisTrade(sellRes, buyRes) {
+                const newSellPrice = Math.max(CONFIG.GAME.MIN_RESOURCE_PRICE_BASIS, StateManager.gameState.prices[sellRes] - 1);
+                const newBuyPrice = Math.min(CONFIG.GAME.MAX_RESOURCE_PRICE_BASIS, StateManager.gameState.prices[buyRes] + 1);
+                StateManager.gameState.prices[sellRes] = newSellPrice;
+                StateManager.gameState.prices[buyRes] = newBuyPrice;
+                StateManager.gameState.priceHistory[sellRes].push(newSellPrice);
+                StateManager.gameState.priceHistory[buyRes].push(newBuyPrice);
+                if (StateManager.gameState.priceHistory[sellRes].length > CONFIG.GAME.PRICE_HISTORY_LENGTH_BASIS) StateManager.gameState.priceHistory[sellRes].shift();
+                if (StateManager.gameState.priceHistory[buyRes].length > CONFIG.GAME.PRICE_HISTORY_LENGTH_BASIS) StateManager.gameState.priceHistory[buyRes].shift();
+            },
+            executeExpertTrade(sellRes, buyRes, giveAmount, getAmount) {
+                const influence = parseFloat(DOMElements.marketInfluenceSlider?.value || 0.5);
+                const pressure = 1;
+                if (sellRes !== GOLD_RESOURCE_KEY) StateManager.gameState.marketPressure[sellRes] -= giveAmount * pressure * influence;
+                if (buyRes !== GOLD_RESOURCE_KEY) StateManager.gameState.marketPressure[buyRes] += getAmount * pressure * influence;
+                StateManager.gameState.sessionTrades++;
+                StateManager.gameState.totalTrades++;
+                StateManager.gameState.sessionTotalGive += giveAmount;
+                StateManager.gameState.sessionTotalGet += getAmount;
+                StateManager.gameState.tradeHistory.unshift({ round: StateManager.gameState.round, sell: sellRes, buy: buyRes, giveAmount, getAmount });
+                if (StateManager.gameState.tradeHistory.length > CONFIG.GAME.MAX_TRADE_HISTORY) StateManager.gameState.tradeHistory.pop();
+                this.advanceRound(true);
+            },
+            advanceRound(tradeMade) {
+                if (ModeManager.currentMode !== 'expert' || (DOMElements.endRoundBtn?.disabled && !tradeMade)) return;
+                StateManager.saveState(); 
+                SoundManager.playSound('click');
+                if (DOMElements.endRoundBtn) {
+                    DOMElements.endRoundBtn.innerHTML = '<div class="loading-spinner mx-auto"></div>';
+                    DOMElements.endRoundBtn.disabled = true;
+                }
+                setTimeout(() => {
+                    StateManager.gameState.round++;
+                    this.updateSeason();
+                    this.updatePrices();
+                    this.updateEvents();
+                    this.updateResourceAvailability();
+                    Object.keys(StateManager.gameState.resources).forEach(key => { 
+                        if (key !== GOLD_RESOURCE_KEY) StateManager.gameState.marketPressure[key] *= 0.7; 
+                    });
+                    UIManager.updateAllUI();
+                    if (DOMElements.endRoundBtn) {
+                        DOMElements.endRoundBtn.innerHTML = 'Runde beenden';
+                        DOMElements.endRoundBtn.disabled = false;
+                    }
+                }, 600);
+            },
+            updateSeason() {
+                const monthOfYear = (StateManager.gameState.round - 1) % 12;
+                if (monthOfYear < 3)      StateManager.gameState.season = 'fruehling';
+                else if (monthOfYear < 6) StateManager.gameState.season = 'sommer';
+                else if (monthOfYear < 9) StateManager.gameState.season = 'herbst';
+                else                      StateManager.gameState.season = 'winter';
+            },
+            updatePrices() {
+                if (ModeManager.currentMode === 'basis') return;
+                const system = CONFIG.ECONOMIC_SYSTEMS[StateManager.gameState.economicSystem];
+
+                Object.keys(StateManager.gameState.resources).forEach(key => {
+                    if (key === GOLD_RESOURCE_KEY) return;
+                    
+                    const corePrice = this.calculateDynamicPrice(key, StateManager.gameState.prices[key]);
+                    StateManager.gameState.prices[key] = corePrice;
+                    
+                    let finalPrice = corePrice;
+                    const season = CONFIG.SEASONS[StateManager.gameState.season];
+                    if (season?.effects[key]) {
+                        finalPrice += season.effects[key];
+                    }
+                    finalPrice = Math.round(Math.max(system.minPrice, Math.min(system.maxPrice, finalPrice)) * 8) / 8;
+                    
+                    StateManager.gameState.priceHistory[key].push(finalPrice);
+                    if (StateManager.gameState.priceHistory[key].length > CONFIG.GAME.PRICE_HISTORY_LENGTH_EXPERT) {
+                        StateManager.gameState.priceHistory[key].shift();
+                    }
+                });
+            },
+            calculateDynamicPrice(resource, basePrice) {
+                if (ModeManager.currentMode === 'basis' || resource === GOLD_RESOURCE_KEY) return basePrice;
+
+                const system = CONFIG.ECONOMIC_SYSTEMS[StateManager.gameState.economicSystem];
+                const influenceMultiplier = parseFloat(DOMElements.marketInfluenceSlider?.value || 0.5);
+                const volatilityInfluence = parseFloat(DOMElements.marketVolatilitySlider?.value || 0.5);
+
+                const randomBase = this.getRandomGaussian(system.minPrice, system.maxPrice);
+                let price = basePrice * (1 - volatilityInfluence) + randomBase * volatilityInfluence;
+
+                price += (StateManager.gameState.marketPressure[resource] || 0) * (influenceMultiplier * 0.5);
+                
+                StateManager.gameState.activeEvents.forEach(activeEvent => {
+                    const eventLogic = CONFIG.EVENTS[activeEvent.key];
+                    if (eventLogic && eventLogic.modifier) {
+                        price = eventLogic.modifier(resource, price, activeEvent.targetResource);
+                    }
+                });
+
+                return Math.round(Math.max(system.minPrice, Math.min(system.maxPrice, price)) * 8) / 8;
+            },
+            updateEvents() {
+                if (ModeManager.currentMode === 'basis') return;
+                StateManager.gameState.activeEvents = StateManager.gameState.activeEvents.filter(event => --event.duration > 0);
+                if (document.getElementById('events-panel')?.classList.contains('collapsed')) return; 
+                if (Math.random() < 0.15) { 
+                    const keys = Object.keys(CONFIG.EVENTS).filter(k => CONFIG.EVENTS[k].type === 'mini'); 
+                    this.triggerEvent(keys[Math.floor(Math.random() * keys.length)]); 
+                }
+                const sinceLast = StateManager.gameState.round - StateManager.gameState.lastGlobalEventRound;
+                if (sinceLast >= 2 && Math.random() < Math.min(0.4, sinceLast * 0.08)) {
+                    const pool = Object.keys(CONFIG.EVENTS).filter(k => ['global', 'shock'].includes(CONFIG.EVENTS[k].type));
+                    const weights = pool.map(k => CONFIG.EVENTS[k].chance), total = weights.reduce((s, w) => s + w, 0);
+                    let rand = Math.random() * total;
+                    for (let i = 0; i < pool.length; i++) { 
+                        if ((rand -= weights[i]) <= 0) { 
+                            this.triggerEvent(pool[i]); 
+                            StateManager.gameState.lastGlobalEventRound = StateManager.gameState.round; 
+                            break; 
+                        } 
+                    }
+                }
+            },
+            triggerEvent(key) {
+                if (ModeManager.currentMode === 'basis' || StateManager.gameState.activeEvents.some(e => e.key === key)) return;
+                const eventData = CONFIG.EVENTS[key];
+                const newActiveEvent = { key, name: eventData.name, duration: eventData.duration, description: eventData.description, banner: eventData.banner, tax: eventData.tax || 0 };
+                if (['spekulationsblase', 'lieferengpass', 'edelsteinfund'].includes(key)) { 
+                    const keys = Object.keys(StateManager.gameState.resources).filter(k => k !== GOLD_RESOURCE_KEY); 
+                    const target = keys[Math.floor(Math.random() * keys.length)];
+                    newActiveEvent.targetResource = target;
+                    newActiveEvent.description += ` ${StateManager.gameState.resources[target].icon}`; 
+                }
+                StateManager.gameState.activeEvents.push(newActiveEvent);
+                SoundManager.playSound('click');
+                UIManager.showEventBanner(newActiveEvent);
+            },
+            updateResourceAvailability() {
+                if (ModeManager.currentMode === 'basis') return;
+                const { economicSystem, resources } = StateManager.gameState;
+                StateManager.gameState.unavailableResources = [];
+                const resourceKeys = Object.keys(resources);
+                if (resourceKeys.length < 2) return;
+                let unavailableCount = 0;
+                if (economicSystem === 'social_market') unavailableCount = 1;
+                else if (economicSystem === 'planned_economy') unavailableCount = 2;
+                if (unavailableCount > 0 && resourceKeys.length > unavailableCount) {
+                    const shuffled = [...resourceKeys].sort(() => 0.5 - Math.random());
+                    StateManager.gameState.unavailableResources = shuffled.slice(0, unavailableCount);
+                }
+            }
+        };
+
+        const UIManager = {
+            priceChart: null,
+            seasonalChart: null,
+            selectedSell: null,
+            selectedBuy: null,
+            setupUI() {
+                DOMElements.resetBtn.addEventListener('click', () => StateManager.resetGame());
+                DOMElements.cancelTradeBtn.addEventListener('click', () => this.closeModal(DOMElements.tradeModal));
+                DOMElements.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+                DOMElements.undoBtn.addEventListener('click', () => StateManager.undo());
+                DOMElements.redoBtn.addEventListener('click', () => StateManager.redo());
+                DOMElements.helpBtn.addEventListener('click', () => this.showHelpModal());
+                if (DOMElements.basisFeeSelector) DOMElements.basisFeeSelector.addEventListener('change', (e) => { StateManager.gameState.basisTradeFee = parseInt(e.target.value, 10); SoundManager.playSound('click'); if (this.selectedSell && this.selectedBuy) this.checkTradeReady(); });
+                if (DOMElements.endRoundBtn) DOMElements.endRoundBtn.addEventListener('click', () => GameEngine.advanceRound(false));
+                if (DOMElements.systemSelector) DOMElements.systemSelector.addEventListener('change', e => { StateManager.gameState.economicSystem = e.target.value; SoundManager.playSound('click'); this.updateSystemDetails(); });
+                if (DOMElements.closeInfoBtn) DOMElements.closeInfoBtn.addEventListener('click', () => this.closeModal(DOMElements.infoModal));
+                if (DOMElements.marketInfluenceSlider) DOMElements.marketInfluenceSlider.addEventListener('input', (e) => { DOMElements.influenceValue.textContent = `${parseFloat(e.target.value).toFixed(1)}x`; });
+                if (DOMElements.marketVolatilitySlider) DOMElements.marketVolatilitySlider.addEventListener('input', (e) => { DOMElements.volatilityValue.textContent = `${parseFloat(e.target.value).toFixed(2)}x`; });
+                if (DOMElements.resourceSetSelector) DOMElements.resourceSetSelector.addEventListener('change', () => StateManager.resetGame());
+                if (DOMElements.startMonthSelector) DOMElements.startMonthSelector.addEventListener('change', () => StateManager.resetGame());
+                if (DOMElements.toggleSeasonalChartBtn) {
+                    DOMElements.toggleSeasonalChartBtn.addEventListener('click', () => {
+                        const content = DOMElements.seasonalChartContent;
+                        const container = DOMElements.seasonalChartContainer;
+                        if (!content || !container) return;
+                        content.classList.toggle('hidden');
+                        const isHidden = content.classList.contains('hidden');
+                        DOMElements.toggleSeasonalChartBtn.textContent = isHidden ? '➕' : '➖';
+                        container.style.minHeight = isHidden ? 'auto' : '160px';
+                        SoundManager.playSound('click');
+                    });
+                }
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Escape') { this.closeModal(DOMElements.tradeModal); if (DOMElements.infoModal && !DOMElements.infoModal.classList.contains('hidden')) this.closeModal(DOMElements.infoModal); }
+                    if (e.key.toLowerCase() === 'f11') { e.preventDefault(); this.toggleFullscreen(); }
+                    if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); StateManager.undo(); }
+                    if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); StateManager.redo(); }
+                });
+                this.setupTabs();
+                this.initializeCollapsibleTiles();
+                ModeManager.initializeModeToggle();
+            },
+            updateResourceUI(resources) {
+                ['priceContainer', 'sellOptions', 'buyOptions'].forEach(el => DOMElements[el] && (DOMElements[el].innerHTML = ''));
+                const resourceCount = Object.keys(resources).length;
+                const gridClass = resourceCount === 4 ? 'grid-cols-4' : (resourceCount > 7 ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-3 sm:grid-cols-5');
+                DOMElements.priceContainer && (DOMElements.priceContainer.className = `grid ${gridClass} gap-2 text-center w-full`);
+                Object.keys(resources).forEach(key => {
+                    const res = resources[key];
+                    if (DOMElements.priceContainer) {
+                        const priceDiv = Object.assign(document.createElement('div'), { className: 'price-display p-2 rounded-lg border-l-4 flex flex-col items-center justify-center', style: `border-color: ${res.color}`, innerHTML: `<div class="resource-icon mb-1">${res.icon}</div><div id="price-value-${key}" class="text-xl font-black">4.0</div><div id="price-trend-${key}" class="text-sm ${ModeManager.currentMode === 'basis' ? 'hidden' : ''}">➡️</div>` });
+                        ModeManager.currentMode === 'expert' && priceDiv.addEventListener('click', () => this.showResourceInfo(key));
+                        DOMElements.priceContainer.appendChild(priceDiv);
+                    }
+                    ['sell', 'buy'].forEach(type => {
+                        const container = DOMElements[`${type}Options`];
+                        if (container) {
+                            const btn = document.createElement('button');
+                            Object.assign(btn, { innerHTML: `<div class="resource-icon mx-auto mb-1">${res.icon}</div><div class="text-xs font-medium">${res.name}</div>`, ariaLabel: `${res.name} ${type === 'sell' ? 'verkaufen' : 'erhalten'}`, className: 'trade-button glass-panel text-center rounded-lg hover:bg-slate-600 focus:outline-none transition-transform active:scale-95', onclick: () => (type === 'sell' ? this.selectSell(key) : this.selectBuy(key)) });
+                            btn.dataset.resource = key;
+                            container.appendChild(btn);
+                        }
+                    });
+                });
+            },
+            setupTabs() {
+                if (DOMElements.tabHistory) DOMElements.tabHistory.addEventListener('click', () => this.switchTab('history'));
+                if (DOMElements.tabChart) DOMElements.tabChart.addEventListener('click', () => this.switchTab('chart'));
+            },
+            initializeCollapsibleTiles() {
+                document.querySelectorAll('.tile-container .collapse-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const tile = e.target.closest('.tile-container');
+                        if (tile) this.toggleTileCollapse(tile);
+                    });
+                });
+            },
+            toggleTileCollapse(tile) {
+                const btn = tile.querySelector('.collapse-btn');
+                const content = tile.querySelector('.tile-content');
+                const isCollapsed = tile.classList.toggle('collapsed');
+                if (tile.id === 'steuerung-panel') {
+                    DOMElements.mainGrid.classList.toggle('collapsed', isCollapsed);
+                    const iconLeft = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+                    const iconRight = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+                    if (btn) { btn.innerHTML = isCollapsed ? iconRight : iconLeft; btn.title = isCollapsed ? 'Steuerung einblenden' : 'Steuerung ausblenden'; }
+                } else { if (btn) btn.textContent = isCollapsed ? '➕' : '➖'; }
+                if (content) { content.style.display = isCollapsed ? 'none' : ''; isCollapsed ? this.deactivateTileEvents(content) : this.activateTileEvents(content); }
+                SoundManager.playSound('click');
+            },
+            activateTileEvents(element) { element.querySelectorAll('[data-event-handler]').forEach(el => el.classList.remove('disabled')) },
+            deactivateTileEvents(element) { element.querySelectorAll('[data-event-handler]').forEach(el => el.classList.add('disabled')) },
+            selectSell(res) { 
+                SoundManager.playSound('click'); 
+                this.selectedSell = res;
+                this.updateTradeButtonsUI(); 
+                this.updateTradingInsightsUI();
+                if (window.innerWidth < 1024) if (DOMElements.handelsinterfacePanel) DOMElements.handelsinterfacePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                this.checkTradeReady(); 
+            },
+            selectBuy(res) { 
+                SoundManager.playSound('click'); 
+                this.selectedBuy = res; 
+                this.updateTradeButtonsUI(); 
+                this.checkTradeReady(); 
+            },
+            checkTradeReady() {
+                if (!this.selectedSell || !this.selectedBuy) return;
+                if (this.selectedSell === this.selectedBuy) { 
+                    DOMElements.tradeSummary.innerHTML = `<span class="text-red-400">❌ Gleiche Ressource!</span>`; 
+                    SoundManager.playSound('error'); 
+                    setTimeout(() => this.resetTradeSelection(), 1500); 
+                    return; 
+                }
+                const offer = GameEngine.calculateTradeOffer(this.selectedSell, this.selectedBuy);
+                if (ModeManager.currentMode === 'expert' && offer.amountToGet <= 0) { 
+                    this.showModalMessage("Handel nicht möglich!", "Dieser Handel ist aufgrund der aktuellen Marktpreise, Steuern oder Events nicht profitabel.", true); 
+                    return; 
+                }
+                
+                let tradeDetailsHTML = `${offer.amountToGive} ${StateManager.gameState.resources[this.selectedSell].icon} → ${offer.amountToGet} ${StateManager.gameState.resources[this.selectedBuy].icon}`;
+                if (offer.tax > 0) {
+                    const taxBreakdown = offer.taxEvents.map(e => `${e.tax} für ${e.name.split(' ')[0]}`).join(', ');
+                    tradeDetailsHTML = `
+                        <div class="flex items-center justify-center text-2xl">
+                           <span>${offer.baseAmount} ${StateManager.gameState.resources[this.selectedSell].icon}</span>
+                           <span class="mx-2 text-lg text-red-400 font-bold">+ ${offer.tax} 🃏</span>
+                           <span class="mx-2 text-lg">→</span>
+                           <span>${offer.amountToGet} ${StateManager.gameState.resources[this.selectedBuy].icon}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-2">Steuer von: ${taxBreakdown}</div>
+                    `;
+                }
+                DOMElements.modalTradeDetails.innerHTML = tradeDetailsHTML;
+
+                DOMElements.confirmTradeBtn.onclick = () => GameEngine.executeTrade(this.selectedSell, this.selectedBuy);
+                SoundManager.playSound('click');
+                this.openModal(DOMElements.tradeModal);
+            },
+            resetTradeSelection() { 
+                this.selectedSell = null; 
+                this.selectedBuy = null; 
+                DOMElements.tradeSummary.innerHTML = '';
+                this.updateTradeButtonsUI(); 
+                this.updateTradingInsightsUI(); 
+            },
+            updateAllUI() {
+                requestAnimationFrame(() => {
+                    if (!StateManager.gameState) return;
+                    this.updatePricesUI(); 
+                    this.updateUndoRedoButtons(); 
+                    this.updateTradeButtonsUI();
+                    this.updateTradingInsightsUI();
+                    if (ModeManager.currentMode === 'expert') {
+                        DOMElements.roundCounter && (DOMElements.roundCounter.textContent = StateManager.gameState.round); 
+                        this.updateSystemDetails(); 
+                        this.updateActiveEventsUI(); 
+                        this.updateTradeHistoryUI(); 
+                        this.updateAnalysis(); 
+                        this.updateSeasonUI();
+                        this.debouncedUpdateChart && this.debouncedUpdateChart(); 
+                        this.updateSeasonalChartAnnotation();
+                        this.updateSliderDisplays();
+                    } else {
+                        const expertOnlyElements = [ DOMElements.systemDetails, DOMElements.activeEventsContainer, DOMElements.tradeHistory, DOMElements.volatilityStatus, DOMElements.tradeRecommendation, DOMElements.forecastText, DOMElements.seasonDisplay ];
+                        expertOnlyElements.forEach(el => el && (el.innerHTML = ''));
+                        UIManager.priceChart && (UIManager.priceChart.destroy(), UIManager.priceChart = null);
+                    }
+                });
+            },
+            updatePricesUI() {
+                Object.keys(StateManager.gameState.resources).forEach(key => {
+                    const valEl = document.getElementById(`price-value-${key}`), trendEl = document.getElementById(`price-trend-${key}`);
+                    if (!valEl) return;
+                    const hist = StateManager.gameState.priceHistory[key];
+                    if (!hist || hist.length === 0) return;
+                    const price = hist[hist.length - 1];
+                    const prev = hist[hist.length - 2] || price;
+                    const diff = price - prev;
+                    valEl.textContent = price.toFixed(ModeManager.currentMode === 'basis' ? 1 : 2);
+                    valEl.classList.remove('price-up', 'price-down');
+                    if (diff < -0.1) valEl.classList.add('price-down');
+                    if (diff > 0.1) valEl.classList.add('price-up');
+                    if (trendEl) trendEl.textContent = ModeManager.currentMode === 'expert' ? (diff > 0.5 ? '🚀' : diff > 0.1 ? '📈' : diff < -0.5 ? '💥' : diff < -0.1 ? '📉' : '➡️') : '';
+                });
+            },
+            updateTradeButtonsUI() {
+                const { resources } = StateManager.gameState;
+                const unavailableResources = ModeManager.currentMode === 'expert' ? StateManager.gameState.unavailableResources : [];
+                const updateButton = (btn, isSelected, isDisabled, needsOverlay) => {
+                    if (!btn) return;
+                    btn.classList.toggle('selected-trade', isSelected);
+                    btn.disabled = isDisabled;
+                    let overlay = btn.querySelector('.unavailable-overlay');
+                    if (needsOverlay && !overlay) {
+                        overlay = Object.assign(document.createElement('div'), { className: 'unavailable-overlay', innerHTML: '❌', style: 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; border-radius: 0.5rem;' });
+                        btn.appendChild(overlay);
+                    } else if (!needsOverlay && overlay) overlay.remove();
+                };
+                Object.keys(resources).forEach(key => {
+                    const isUnavailableForPurchase = unavailableResources.includes(key);
+                    const sellBtn = document.querySelector(`#sell-options .trade-button[data-resource="${key}"]`);
+                    updateButton(sellBtn, this.selectedSell === key, false, false);
+                    const buyBtn = document.querySelector(`#buy-options .trade-button[data-resource="${key}"]`);
+                    updateButton(buyBtn, this.selectedBuy === key, isUnavailableForPurchase || !this.selectedSell, isUnavailableForPurchase);
+                });
+            },
+            updateSystemDetails() { 
+                if (ModeManager.currentMode !== 'expert' || !DOMElements.systemDetails) return;
+                const s = CONFIG.ECONOMIC_SYSTEMS[StateManager.gameState.economicSystem]; 
+                DOMElements.systemDetails.innerHTML = `<div class="space-y-1"><div class="flex justify-between"><span>Handkarten-Limit:</span><b>${s.handLimit === null ? '∞' : s.handLimit}</b></div><div class="flex justify-between"><span>Gemeinschaftstopf:</span><b>${s.hasSharedPool ? 'Ja' : 'Nein'}</b></div><div class="flex justify-between"><span>Bürokratie-Kosten:</span><b>${s.bureaucracyCost || 'Keine'}</b></div><div class="mt-2 p-1 bg-slate-700 rounded">${s.description}</div></div>`; 
+            },
+            updateActiveEventsUI() {
+                if (ModeManager.currentMode !== 'expert' || !DOMElements.activeEventsContainer) return;
+                if (StateManager.gameState.activeEvents.length === 0) { DOMElements.activeEventsContainer.innerHTML = `<div class="stats-card rounded-lg p-2 text-center text-gray-400"><div class="text-lg mb-1">🌙</div><p class="text-xs">Markt ruhig</p></div>`; return; }
+                DOMElements.activeEventsContainer.innerHTML = StateManager.gameState.activeEvents.map(activeEvent => {
+                    const eventConfig = CONFIG.EVENTS[activeEvent.key];
+                    const bannerClass = { critical: 'border-red-500', warning: 'border-yellow-500', info: 'border-blue-500', success: 'border-green-500' }[eventConfig.banner];
+                    let effectText = eventConfig.effectText;
+                    if (activeEvent.targetResource) effectText += ` (${StateManager.gameState.resources[activeEvent.targetResource].icon})`;
+                    return `<div class="stats-card ${bannerClass} border-l-4 p-2 mb-2"><div class="flex justify-between items-start"><h6 class="font-bold text-white">${eventConfig.name}</h6><div class="text-gray-400 text-xs whitespace-nowrap pl-2">⏱️ ${activeEvent.duration}R</div></div><p class="text-xs mt-1 mb-2 text-gray-300 italic">"${eventConfig.story}"</p><div class="text-xs space-y-1"><p><b>Auswirkung:</b> ${effectText}</p></div></div>`;
+                }).join('');
+            },
+            updateTradeHistoryUI() { 
+                if (ModeManager.currentMode !== 'expert' || !DOMElements.tradeHistory) return;
+                DOMElements.tradeHistory.innerHTML = StateManager.gameState.tradeHistory.length === 0 ? `<div class="text-center py-4 text-gray-500"><div class="text-lg mb-1">📊</div><p class="text-xs">Keine Trades</p></div>` : StateManager.gameState.tradeHistory.map(t => { const eff = (t.getAmount * 4) / t.giveAmount; const c = eff > 1.5 ? 'text-green-400' : eff > 1.0 ? 'text-green-300' : eff > 0.7 ? 'text-yellow-400' : 'text-red-400'; const i = eff > 1.5 ? '🎉' : eff > 1.0 ? '👍' : eff > 0.7 ? '📊' : '💸'; return `<div class="${c}">R${t.round}: ${t.giveAmount} ${StateManager.gameState.resources[t.sell].icon} → ${t.getAmount} ${StateManager.gameState.resources[t.buy].icon} ${i}</div>`; }).join(''); 
+            },
+            updateAnalysis() {
+                if (ModeManager.currentMode !== 'expert') return;
+                const prices = Object.values(StateManager.gameState.priceHistory).map(h => h[h.length - 1]);
+                const vol = Math.max(...prices) - Math.min(...prices);
+                let s = 'NIEDRIG', c = 'text-green-400', volTooltip = 'Geringe Preisänderungen erwartet.';
+                if (vol > 4) { s = 'EXTREM'; c = 'text-red-400'; volTooltip = 'Sehr starke Preissprünge sind wahrscheinlich!'; } 
+                else if (vol > 2.5) { s = 'HOCH'; c = 'text-yellow-400'; volTooltip = 'Stärkere Preisänderungen erwartet.'; }
+                if (DOMElements.volatilityStatus) { DOMElements.volatilityStatus.textContent = s; DOMElements.volatilityStatus.className = `ml-1 font-bold ${c}`; }
+                if (DOMElements.volatilityContainer) DOMElements.volatilityContainer.title = volTooltip;
+                
+                const currentPrices = Object.entries(StateManager.gameState.priceHistory).map(([key, hist]) => [key, hist[hist.length - 1]]);
+                const cheap = currentPrices.reduce((a, b) => a[1] < b[1] ? a : b);
+                const exp = currentPrices.reduce((a, b) => a[1] > b[1] ? a : b);
+
+                let recTooltip = 'Die Preise sind moderat. Abwarten könnte sich lohnen.';
+                if (DOMElements.tradeRecommendation) {
+                    if (cheap[1] < 2.5) { DOMElements.tradeRecommendation.textContent = `${StateManager.gameState.resources[cheap[0]].icon} KAUFEN`; DOMElements.tradeRecommendation.className = 'ml-1 font-bold text-green-400'; recTooltip = `Dieser Rohstoff (${StateManager.gameState.resources[cheap[0]].name}) ist aktuell sehr günstig. Eine gute Kaufgelegenheit.`; } 
+                    else if (exp[1] > 6) { DOMElements.tradeRecommendation.textContent = `${StateManager.gameState.resources[exp[0]].icon} VERKAUFEN`; DOMElements.tradeRecommendation.className = 'ml-1 font-bold text-red-400'; recTooltip = `Dieser Rohstoff (${StateManager.gameState.resources[exp[0]].name}) ist aktuell sehr teuer. Eine gute Verkaufsgelegenheit.`; } 
+                    else { DOMElements.tradeRecommendation.textContent = 'HALTEN'; DOMElements.tradeRecommendation.className = 'ml-1 font-bold text-gray-400'; }
+                }
+                if (DOMElements.recommendationContainer) DOMElements.recommendationContainer.title = recTooltip;
+                if (DOMElements.forecastText) DOMElements.forecastText.textContent = StateManager.gameState.activeEvents.length > 0 ? 'Volatil durch Events' : 'Stabil';
+            },
+            updateSeasonUI() {
+                if (ModeManager.currentMode !== 'expert' || !DOMElements.seasonDisplay) return;
+                const round = StateManager.gameState.round, year = Math.floor((round - 1) / 12) + 1, seasonKey = StateManager.gameState.season, season = CONFIG.SEASONS[seasonKey], monthOfSeason = ((round - 1) % 3) + 1;
+                DOMElements.seasonDisplay.innerHTML = `<span class="text-sm font-bold">${season.name} ${season.icon}</span><span class="block text-xl font-black gradient-text">Jahr ${year}</span><span class="text-xs text-gray-400">(Monat ${monthOfSeason}/3)</span>`;
+            },
+            updateTradingInsightsUI() {
+                const insightsEl = DOMElements.tradingInsightsWrapper;
+                if (!insightsEl) return;
+                if (ModeManager.currentMode === 'expert') {
+                    let htmlContent = '';
+                    if (this.selectedSell) {
+                        const sellRes = StateManager.gameState.resources[this.selectedSell];
+                        htmlContent = `<div class="stats-card p-2 rounded border-l-2 border-blue-500 h-full flex flex-col"><div class="font-bold">Angebote für ${sellRes.icon}:</div><div class="space-y-1 mt-1 text-xs scrollable-content pr-1 flex-grow">`;
+                        for (const buyKey of Object.keys(StateManager.gameState.resources)) {
+                            if (buyKey === this.selectedSell) continue;
+                            const offer = GameEngine.calculateTradeOffer(this.selectedSell, buyKey), buyRes = StateManager.gameState.resources[buyKey];
+                            const isUnavailable = StateManager.gameState.unavailableResources.includes(buyKey), unavailableClass = isUnavailable ? 'opacity-50' : '', unavailableText = isUnavailable ? ' (nicht verfügbar)' : '';
+                            if (offer.amountToGet > 0) htmlContent += `<div class="p-1 rounded bg-slate-800/50 ${unavailableClass}"><span>${String(offer.amountToGive).padStart(2, ' ')} ${sellRes.icon} → </span><span class="font-bold text-green-300">${String(offer.amountToGet).padStart(2, ' ')} ${buyRes.icon}</span>${unavailableText}</div>`;
+                            else htmlContent += `<div class="p-1 rounded opacity-50"><span>${sellRes.icon} → ${buyRes.icon} (n.m.)</span></div>`;
+                        }
+                        htmlContent += `</div></div>`;
+                    } else {
+                        const eff = StateManager.gameState.sessionTotalGive > 0 ? ((StateManager.gameState.sessionTotalGet * 4) / StateManager.gameState.sessionTotalGive) * 100 : 0;
+                        let best = { efficiency: 0 };
+                        for (const sellRes of Object.keys(StateManager.gameState.resources)) for (const buyRes of Object.keys(StateManager.gameState.resources)) { if (sellRes === buyRes || StateManager.gameState.unavailableResources.includes(buyRes)) continue; const offer = GameEngine.calculateTradeOffer(sellRes, buyRes); if (offer.amountToGet > 0) { const e = (offer.amountToGet * 4) / offer.amountToGive; if (e > best.efficiency) best = { ...offer, sellRes, buyRes, efficiency: e }; } }
+                        htmlContent = `<div class="grid grid-cols-2 gap-2 h-full"><div class="stats-card p-2 rounded border-l-2 border-blue-500"><div class="font-bold">Diese Session:</div><div>🔄 <span>${StateManager.gameState.sessionTrades}</span> Trades</div><div>📈 <span>${eff.toFixed(0)}%</span> Effizienz</div></div><div class="stats-card p-2 rounded border-l-2 border-green-500"><div class="font-bold text-green-300">💰 Beste Chance:</div><div>${best.sellRes ? `${best.amountToGive} ${StateManager.gameState.resources[best.sellRes].icon} → ${best.amountToGet} ${StateManager.gameState.resources[best.buyRes].icon}` : 'Keine'}</div></div></div>`;
+                    }
+                    insightsEl.innerHTML = htmlContent;
+                } else {
+                    let htmlContent = `<div class="stats-card rounded-lg p-2">`;
+                    if (this.selectedSell) {
+                        const sellRes = StateManager.gameState.resources[this.selectedSell];
+                        htmlContent += `<h3 class="text-sm font-bold mb-2 text-blue-300">💡 Handels-Angebote für ${sellRes.name}</h3><div class="text-xs space-y-1">`;
+                        for (const buyKey of Object.keys(StateManager.gameState.resources)) {
+                            if (buyKey === this.selectedSell) continue;
+                            const offer = GameEngine.calculateTradeOffer(this.selectedSell, buyKey), buyRes = StateManager.gameState.resources[buyKey];
+                            htmlContent += `<div class="flex justify-between items-center p-1 rounded bg-slate-800/50"><span>${offer.amountToGive} ${sellRes.icon}</span><span>→</span><span class="font-bold text-green-300">${offer.amountToGet} ${buyRes.icon}</span></div>`;
+                        }
+                        htmlContent += `</div>`;
+                    } else htmlContent += `<h3 class="text-sm font-bold mb-2 text-blue-300">💡 Handels-Angebote</h3><div class="text-center text-gray-400">Wähle eine Ressource zum Verkaufen</div>`;
+                    htmlContent += `</div>`;
+                    insightsEl.innerHTML = htmlContent;
+                }
+            },
+            showEventBanner(event) { 
+                if (ModeManager.currentMode !== 'expert' || !DOMElements.eventBannerContainer) return;
+                const c = DOMElements.eventBannerContainer, b = document.createElement('div'), cl = { critical: 'bg-red-600', warning: 'bg-yellow-600', info: 'bg-blue-600', success: 'bg-green-600' }; 
+                b.className = `event-banner ${cl[event.banner]} p-4 text-center text-white font-bold shadow-2xl rounded-xl`; 
+                b.innerHTML = `<div class="text-2xl mb-2">${event.name}</div><div class="text-sm opacity-90">${event.description}</div>`; 
+                c.innerHTML = ''; c.appendChild(b); 
+                setTimeout(() => { b.classList.add('event-banner-out'); setTimeout(() => b.remove(), 600); }, (event.duration || 3) * CONFIG.UI.BANNER_DISPLAY_TIME_FACTOR); 
+            },
+            debouncedUpdateChart: null,
+            initChart() {
+                if (ModeManager.currentMode !== 'expert') return;
+                setTimeout(() => {
+                    const canvas = document.getElementById('price-chart');
+                    if (!canvas || typeof Chart === 'undefined') return;
+                    if (this.priceChart) { this.priceChart.destroy(); this.priceChart = null; }
+                    try {
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return;
+                        canvas.style.display = 'block';
+                        this.priceChart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 9 } } } }, plugins: { legend: { display: true, position: 'top', labels: { color: '#f1f5f9', font: { size: 10 }, usePointStyle: true } }, tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.95)', titleColor: '#f1f5f9', bodyColor: '#e2e8f0', borderColor: 'rgba(148, 163, 184, 0.2)', borderWidth: 1, cornerRadius: 8 } } } });
+                        if (!this.debouncedUpdateChart) this.debouncedUpdateChart = debounce(() => this.updateChart(), CONFIG.UI.CHART_UPDATE_DEBOUNCE);
+                        this.updateChart();
+                    } catch (error) { console.error('Failed to initialize chart:', error); handleGameError(new GameError('Chart konnte nicht initialisiert werden', 'UI_ERROR')); }
+                }, 200);
+            },
+            updateChart() {
+                if (!this.priceChart || ModeManager.currentMode !== 'expert' || !StateManager.gameState) return;
+                try {
+                    const { resources, priceHistory, round } = StateManager.gameState;
+                    this.priceChart.data.datasets = Object.keys(resources).map(key => ({ label: resources[key].name, data: priceHistory[key] || [], borderColor: resources[key].color, backgroundColor: resources[key].color + '33', tension: 0.4, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: false }));
+                    const maxLen = Math.max(...Object.values(priceHistory).map(h => h.length));
+                    this.priceChart.data.labels = Array.from({ length: maxLen }, (_, i) => Math.max(1, round - maxLen + i + 1));
+                    this.priceChart.update('none');
+                } catch (error) { console.error('Failed to update chart:', error); }
+            },
+            initSeasonalChart() {
+                if (ModeManager.currentMode !== 'expert' || !DOMElements.seasonalChart) return;
+                if (this.seasonalChart) { this.seasonalChart.destroy(); this.seasonalChart = null; }
+                try {
+                    const ctx = DOMElements.seasonalChart.getContext('2d');
+                    if (!ctx) return;
+                    const getSeasonalModifier = (resourceKey, monthIndex) => { let seasonKey; if (monthIndex < 3) seasonKey = 'fruehling'; else if (monthIndex < 6) seasonKey = 'sommer'; else if (monthIndex < 9) seasonKey = 'herbst'; else seasonKey = 'winter'; return CONFIG.SEASONS[seasonKey]?.effects[resourceKey] || 0; };
+                    const resources = getResourcesForSet(DOMElements.resourceSetSelector.value);
+                    const datasets = Object.keys(resources).map(key => { if (key === GOLD_RESOURCE_KEY) return null; return { label: resources[key].name, data: Array.from({ length: 12 }, (_, i) => getSeasonalModifier(key, i)), borderColor: resources[key].color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 2, pointHoverRadius: 5, tension: 0.1 }; }).filter(Boolean);
+                    this.seasonalChart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'], datasets: datasets },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { y: { title: { display: true, text: 'Preis-Modifikator', color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 9 } } } },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.95)', titleColor: '#f1f5f9', bodyColor: '#e2e8f0', mode: 'index', intersect: false },
+                                annotation: {
+                                    annotations: {
+                                        currentMonthLine: {
+                                            type: 'line', scaleID: 'x', value: 'Jan', borderColor: 'rgba(255, 255, 255, 0.7)', borderWidth: 2, borderDash: [6, 6],
+                                            label: { enabled: true, content: 'Jetzt', position: 'start', backgroundColor: 'rgba(255, 255, 255, 0.7)', color: '#0f172a', font: { weight: 'bold' } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    this.updateSeasonalChartAnnotation();
+                } catch (error) { console.error('Failed to initialize seasonal chart:', error); }
+            },
+            updateSeasonalChartAnnotation() {
+                if (!this.seasonalChart || ModeManager.currentMode !== 'expert' || !StateManager.gameState) return;
+                try {
+                    const monthIndex = (StateManager.gameState.round - 1) % 12;
+                    const monthLabel = this.seasonalChart.data.labels[monthIndex];
+                    this.seasonalChart.options.plugins.annotation.annotations.currentMonthLine.value = monthLabel;
+                    this.seasonalChart.update('none');
+                } catch (error) { console.error('Failed to update seasonal chart annotation:', error); }
+            },
+            updateUndoRedoButtons() { 
+                DOMElements.undoBtn.disabled = StateManager.gameState.historyIndex <= 0; 
+                DOMElements.redoBtn.disabled = StateManager.gameState.historyIndex >= StateManager.gameState.history.length - 1; 
+            },
+            updateSliderDisplays() {
+                if (DOMElements.marketInfluenceSlider) DOMElements.influenceValue.textContent = `${parseFloat(DOMElements.marketInfluenceSlider.value).toFixed(1)}x`;
+                if (DOMElements.marketVolatilitySlider) DOMElements.volatilityValue.textContent = `${parseFloat(DOMElements.marketVolatilitySlider.value).toFixed(2)}x`;
+            },
+            openModal(modal) { 
+                SoundManager.playSound('click');
+                document.querySelector('.main-grid').style.pointerEvents = 'none';
+                modal.classList.remove('hidden'); 
+                setTimeout(() => modal.querySelector('.transform').classList.remove('scale-95', 'opacity-0'), 10); 
+            },
+            closeModal(modal) { 
+                SoundManager.playSound('click');
+                document.querySelector('.main-grid').style.pointerEvents = 'auto';
+                modal.querySelector('.transform').classList.add('scale-95', 'opacity-0'); 
+                setTimeout(() => modal.classList.add('hidden'), CONFIG.UI.MODAL_ANIMATION_DURATION); 
+                this.resetTradeSelection(); 
+            },
+            showModalMessage(title, message, isError = false) {
+                DOMElements.modalTradeDetails.innerHTML = `<b class="block mb-2 text-xl ${isError ? 'text-red-400' : 'text-blue-400'}">${title}</b><p class="text-base">${message}</p>`;
+                DOMElements.confirmTradeBtn.classList.add('hidden');
+                DOMElements.cancelTradeBtn.textContent = "💡 OK";
+                DOMElements.cancelTradeBtn.className = "bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-transform hover:scale-105";
+                DOMElements.cancelTradeBtn.onclick = () => { this.closeModal(DOMElements.tradeModal); DOMElements.confirmTradeBtn.classList.remove('hidden'); DOMElements.cancelTradeBtn.textContent = "❌ Abbrechen"; DOMElements.cancelTradeBtn.className = "bg-red-600 hover:red-bg-700 text-white font-bold py-3 px-8 rounded-xl transition-transform hover:scale-105"; };
+                this.openModal(DOMElements.tradeModal);
+            },
+            showInfoMessage(title, bodyHTML, icon = '💡') { 
+                if (!DOMElements.infoModal) return;
+                if (DOMElements.infoModalIcon) DOMElements.infoModalIcon.textContent = icon; 
+                if (DOMElements.infoModalTitle) DOMElements.infoModalTitle.textContent = title; 
+                if (DOMElements.infoModalBody) DOMElements.infoModalBody.innerHTML = bodyHTML; 
+                this.openModal(DOMElements.infoModal); 
+            },
+            showHelpModal() {
+                const helpContentData = {
+                    tabs: [
+                        { id: 'modi', label: 'Spielmodi', content: [ { title: '🟢 Modus: Einfach', text: 'Ideal für Einsteiger oder eine schnelle Runde. Die Preise ändern sich nur direkt durch Handel. Es gibt keine komplexen Events oder Wirtschaftssysteme.' }, { title: '🔴 Modus: Vollständig', text: 'Die volle Simulation! Hier beeinflussen Jahreszeiten, Wirtschaftssysteme, zufällige Events und der allgemeine Marktdruck die Preise. Dieser Modus bietet mehr Tiefe und strategische Möglichkeiten.' } ]},
+                        { id: 'handel', label: 'Handel', content: [ { title: 'Handel im "Einfach"-Modus', text: 'Die Kosten sind vorhersehbar. Du zahlst immer eine Grundgebühr (einstellbar), 1 Karte deines Rohstoffs und eine eventuelle Preisdifferenz. Gibst du eine teure Karte für eine billige ab, erhältst du mehr zurück.' }, { title: 'Handel im "Vollständig"-Modus', text: 'Jeder Handel beeinflusst den Markt. Wenn du viel von einer Ressource verkaufst, sinkt ihr Preis. Kaufst du viel, steigt er. Der "Markteinfluss"-Regler bestimmt, wie stark deine Aktionen die Preise verändern.' } ]},
+                        { id: 'systeme', label: 'Systeme', expertOnly: true, content: [ { title: '🔥 Freier Markt', text: 'Hohe Preisschwankungen, keine Handkartenlimits. Ein riskantes System mit hohen potenziellen Gewinnen und Verlusten.' }, { title: '🤝 Soziale Marktwirtschaft', text: 'Ein ausbalanciertes System mit moderaten Preisen und einem Handkartenlimit. Bestimmte Ressourcen können temporär vom Markt genommen werden, um Monopole zu verhindern.' }, { title: '⚖️ Planwirtschaft', text: 'Stabile, staatlich kontrollierte Preise und ein strenges Handkartenlimit. Ein Teil der Handelserträge fließt in einen Gemeinschaftstopf, der periodisch umverteilt wird.' } ]},
+                        { id: 'events', label: 'Events', expertOnly: true, content: [ { title: '⚡ Zufällige Events', text: 'Im "Vollständig"-Modus können jederzeit zufällige Ereignisse eintreten, die den Markt beeinflussen. Achte auf die Banner am oberen Bildschirmrand!' }, { title: 'Positive Events', text: '(<b class="text-green-400">z.B. Erntefest</b>) senken die Preise.', type: 'list-item' }, { title: 'Negative Events', text: '(<b class="text-yellow-400">z.B. Dürre</b>) erhöhen die Preise.', type: 'list-item' }, { title: 'Schock-Events', text: '(<b class="text-red-400">z.B. Marktcrash</b>) können die Preise dramatisch verändern.', type: 'list-item' } ]}
+                    ]
+                };
+                const icon = '📖', title = 'Hilfe & Spielregeln';
+                let tabsHtml = '', contentHtml = '', firstTabId = '';
+                helpContentData.tabs.forEach((tab, index) => {
+                    if (tab.expertOnly && ModeManager.currentMode === 'basis') return;
+                    if (!firstTabId) firstTabId = tab.id; 
+                    tabsHtml += `<button data-tab="${tab.id}" class="help-tab-button ${index === 0 ? 'active' : ''} font-bold p-2 flex-1 ${tab.expertOnly ? 'expert-only' : ''}">${tab.label}</button>`;
+                    let tabContentBody = '';
+                    tab.content.forEach(item => { tabContentBody += item.type === 'list-item' ? `<li><b class="${item.textColor || ''}">${item.title}</b> ${item.text}</li>` : `<div><h4 class="font-bold">${item.title}</h4><p>${item.text}</p></div>`; });
+                    contentHtml += `<div id="help-${tab.id}" class="help-tab-content ${index === 0 ? '' : 'hidden'} space-y-3">${tab.id === 'events' ? '<ul class="list-disc list-inside mt-2 text-gray-400 text-sm">' + tabContentBody + '</ul>' : tabContentBody}</div>`;
+                });
+                const body = `<div class="flex border-b border-slate-600 mb-4">${tabsHtml}</div><div class="scrollable-content pr-2" style="max-height: 50vh;">${contentHtml}</div>`;
+                this.showInfoMessage(title, body, icon);
+                const modalBody = DOMElements.infoModalBody;
+                modalBody.querySelectorAll('.help-tab-button').forEach(btn => btn.addEventListener('click', () => { const tabId = btn.dataset.tab; modalBody.querySelectorAll('.help-tab-button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modalBody.querySelectorAll('.help-tab-content').forEach(content => content.classList.add('hidden')); modalBody.querySelector(`#help-${tabId}`).classList.remove('hidden'); }));
+                if (firstTabId) modalBody.querySelector(`.help-tab-button[data-tab="${firstTabId}"]`)?.click();
+            },
+            async toggleFullscreen() {
+                if (!document.fullscreenElement) { try { await document.documentElement.requestFullscreen(); } catch (e) { console.error(e); this.showInfoMessage('Vollbild nicht verfügbar', 'Der Vollbild-Modus wird in dieser Vorschau-Umgebung möglicherweise durch Berechtigungen blockiert.', '⚠️'); } } 
+                else if (document.exitFullscreen) await document.exitFullscreen();
+                setTimeout(() => this.updateFullscreenIcon(), 100);
+            },
+            updateFullscreenIcon() { 
+                const isFullscreen = !!document.fullscreenElement; 
+                DOMElements.fullscreenIconOpen.classList.toggle('hidden', isFullscreen); 
+                DOMElements.fullscreenIconClose.classList.toggle('hidden', !isFullscreen); 
+            },
+            switchTab(tab) {
+                if (ModeManager.currentMode !== 'expert') return;
+                SoundManager.playSound('click');
+                document.querySelectorAll('#insights-panel .tab-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`tab-${tab}`)?.classList.add('active');
+                const historyContent = document.getElementById('tab-content-history'), chartContent = document.getElementById('tab-content-chart');
+                if (tab === 'history') { if(historyContent) historyContent.classList.remove('hidden'); if(chartContent) chartContent.classList.add('hidden'); } 
+                else {
+                    if(historyContent) historyContent.classList.add('hidden'); if(chartContent) chartContent.classList.remove('hidden');
+                    setTimeout(() => { if (!this.priceChart) this.initChart(); else { this.priceChart.resize(); if (this.debouncedUpdateChart) this.debouncedUpdateChart(); } }, 50);
+                }
+            },
+            showResourceInfo(key) { 
+                if (ModeManager.currentMode === 'basis' || !DOMElements.infoModal) return;
+                const res = StateManager.gameState.resources[key], history = StateManager.gameState.priceHistory[key]; 
+                if (DOMElements.infoModalIcon) DOMElements.infoModalIcon.innerHTML = `<div class="resource-icon mx-auto w-16 h-16 flex items-center justify-center text-4xl">${res.icon}</div>`; 
+                if (DOMElements.infoModalTitle) DOMElements.infoModalTitle.textContent = res.name; 
+                if (DOMElements.infoModalBody) DOMElements.infoModalBody.innerHTML = `<p>Aktueller Preis: <b class="text-white">${history[history.length - 1].toFixed(2)}</b></p><p>Durchschnitt (letzte 10 Runden): <b class="text-white">${(history.reduce((a, b) => a + b, 0) / history.length).toFixed(2)}</b></p><p>Historie (letzte 10 Runden): <b class="text-green-400">${Math.min(...history).toFixed(2)}</b> - <b class="text-red-400">${Math.max(...history).toFixed(2)}</b></p>`; 
+                this.openModal(DOMElements.infoModal); 
+            },
+        };
+
+        try {
+            SoundManager.playSound('click');
+            SoundManager.initializeSynths();
+            UIManager.setupUI();
+            UIManager.initChart();
+            UIManager.initSeasonalChart();
+            StateManager.init();
+            setTimeout(() => {
+                if (ModeManager.currentMode === 'expert') UIManager.showEventBanner({ name: "Handelsplatz bereit!", banner: 'success', description: "🚀 Viel Erfolg beim Handeln!" });
+            }, 1000);
+        } catch (error) {
+            handleGameError(error);
+        }
+    });
+    </script>
+</body>
+</html>
