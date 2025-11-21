@@ -14,13 +14,13 @@
     <meta name="apple-mobile-web-app-title" content="Trade-X">
 
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/Trade-X/manifest.json">
 
     <!-- Favicons and App Icons -->
-    <link rel="icon" type="image/svg+xml" href="icon-template.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/svg+xml" href="/Trade-X/icon-template.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/Trade-X/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/Trade-X/icons/icon-512x512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/Trade-X/icons/icon-192x192.png">
 
     <!-- Security: CDN resources with SRI integrity checks -->
     <!-- Note: Tailwind CSS Play CDN does not support SRI as it's dynamically generated.
@@ -1553,7 +1553,7 @@
         // Service Worker Registrierung für PWA-Funktionalität
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('/Trade-X/service-worker.js')
                     .then((registration) => {
                         console.log('✅ Service Worker registriert:', registration.scope);
 
