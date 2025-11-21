@@ -2,7 +2,7 @@
   "name": "Trade-X Dynamischer Handelsplatz",
   "short_name": "Trade-X",
   "description": "Dynamischer Handelsplatz für Ressourcen-Trading mit Echtzeit-Preisen und Marktanalysen",
-  "start_url": "/Trade-X/Trade%20X%20All%20V52.html",
+  "start_url": "/Trade-X/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#3b82f6",
