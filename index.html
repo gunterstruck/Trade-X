@@ -117,6 +117,64 @@
         .loading-spinner { border: 3px solid rgba(59, 130, 246, 0.3); border-radius: 50%; border-top: 3px solid var(--accent-blue); width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .scrollable-content { overflow-y: auto; }
+
+        /* Tycoon Edition: Floating Text Animation */
+        .floating-profit {
+            position: fixed;
+            pointer-events: none;
+            font-weight: bold;
+            font-size: 1.5rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+            animation: floatUp 2s ease-out forwards;
+            z-index: 9999;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            10% { opacity: 1; transform: translateY(-10px) scale(1.2); }
+            100% { transform: translateY(-120px) scale(1); opacity: 0; }
+        }
+
+        /* Tycoon Edition: Button Flash Effect */
+        @keyframes buttonFlash {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+            50% { box-shadow: 0 0 30px 10px rgba(34, 197, 94, 0.8); background-color: rgba(34, 197, 94, 0.3); }
+        }
+        .button-flash {
+            animation: buttonFlash 0.6s ease-out;
+        }
+
+        /* Tycoon Edition: Trader Rank Display */
+        .trader-rank {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(59, 130, 246, 0.2));
+            border: 2px solid rgba(168, 85, 247, 0.5);
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .trader-rank:hover {
+            border-color: rgba(168, 85, 247, 0.8);
+            transform: scale(1.02);
+        }
+        .rank-title {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
+        }
+        .rank-name {
+            font-size: 1rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #a855f7, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .rank-progress {
+            font-size: 0.65rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
         
         /* Verbesserte Tab-Button Styles */
         .tab-button {
@@ -283,6 +341,13 @@
                 </button>
             </div>
             <div class="flex-grow min-h-0 overflow-y-auto pr-1 tile-content">
+                <!-- Tycoon Edition: Trader Rank Display -->
+                <div id="trader-rank-display" class="trader-rank">
+                    <div class="rank-title">🏆 Händler-Rang</div>
+                    <div class="rank-name" id="rank-name">Neuling</div>
+                    <div class="rank-progress" id="rank-progress">0 Trades</div>
+                </div>
+
                 <div class="mb-2">
                     <label class="text-xs text-gray-400">Spielmodus:</label>
                     <select id="mode-selector" class="glass-panel text-white rounded-lg p-2 w-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -735,12 +800,12 @@
                 SoundManager.playSound('reset');
                 const baseState = { history: [], historyIndex: -1, prices: {}, priceHistory: {}, marketPressure: {}, sharedPool: {} };
                 if (ModeManager.currentMode === 'basis') {
-                    this.gameState = { ...baseState, mode: 'basis', resources: BASIS_RESOURCES, basisTradeFee: parseInt(DOMElements.basisFeeSelector?.value || 2, 10) };
+                    this.gameState = { ...baseState, mode: 'basis', resources: BASIS_RESOURCES, basisTradeFee: parseInt(DOMElements.basisFeeSelector?.value || 2, 10), totalTrades: 0, totalProfit: 0 };
                     CONFIG.GAME.MAX_HISTORY_STEPS = CONFIG.GAME.MAX_HISTORY_STEPS_BASIS;
                 } else {
                     const resourceSetId = DOMElements.resourceSetSelector?.value || 'set_5';
                     const startMonth = parseInt(DOMElements.startMonthSelector?.value || 1, 10);
-                    this.gameState = { ...baseState, mode: 'expert', round: startMonth, season: 'fruehling', resourceSet: resourceSetId, resources: getResourcesForSet(resourceSetId), economicSystem: DOMElements.systemSelector?.value || 'free_market', activeEvents: [], totalTrades: 0, tradeHistory: [], lastGlobalEventRound: 0, sessionTrades: 0, sessionTotalGive: 0, sessionTotalGet: 0, unavailableResources: [] };
+                    this.gameState = { ...baseState, mode: 'expert', round: startMonth, season: 'fruehling', resourceSet: resourceSetId, resources: getResourcesForSet(resourceSetId), economicSystem: DOMElements.systemSelector?.value || 'free_market', activeEvents: [], totalTrades: 0, totalProfit: 0, tradeHistory: [], lastGlobalEventRound: 0, sessionTrades: 0, sessionTotalGive: 0, sessionTotalGet: 0, unavailableResources: [] };
                     CONFIG.GAME.MAX_HISTORY_STEPS = CONFIG.GAME.MAX_HISTORY_STEPS_EXPERT;
                     GameEngine.updateSeason(); // Set initial season based on start month
                 }
@@ -813,10 +878,14 @@
                         sweep: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, release: 0.1 }, volume: -20 }).connect(new Tone.AutoFilter("8n").toDestination().start()),
                         undo: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, release: 0.1 }, volume: -20 }).connect(new Tone.AutoFilter("8n").toDestination().start()),
                         redo: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, release: 0.1 }, volume: -20 }).connect(new Tone.AutoFilter("8n").toDestination().start()),
+                        // Tycoon Edition: Dynamic profit sounds
+                        smallProfit: new Tone.PolySynth(Tone.FMSynth, { harmonicity: 8, modulationIndex: 2, volume: -10, envelope: { attack: 0.01, decay: 0.2, release: 0.3 }, modulationEnvelope: { attack: 0.01, decay: 0.2, release: 0.2 } }).connect(reverb),
+                        bigProfit: new Tone.PolySynth(Tone.FMSynth, { harmonicity: 8, modulationIndex: 2, volume: -6, envelope: { attack: 0.01, decay: 0.4, release: 0.5 }, modulationEnvelope: { attack: 0.01, decay: 0.2, release: 0.2 } }).connect(reverb),
+                        hugeProfit: new Tone.PolySynth(Tone.FMSynth, { harmonicity: 8, modulationIndex: 2, volume: -4, envelope: { attack: 0.01, decay: 0.5, release: 0.6 }, modulationEnvelope: { attack: 0.01, decay: 0.2, release: 0.2 } }).connect(reverb),
                     };
                 } catch (e) { console.error("Audio-Context konnte nicht initialisiert werden:", e); }
             },
-            async playSound(soundName) {
+            async playSound(soundName, profitAmount = 0) {
                 if (Tone.context.state !== 'running') { try { await Tone.start(); } catch (e) { console.error("Tone.js konnte nicht gestartet werden.", e); return; } }
                 if (!this.synths[soundName]) { console.warn(`Sound ${soundName} not found.`); return; }
                 try {
@@ -828,8 +897,28 @@
                         case 'error': this.synths.error.triggerAttackRelease("0.1", now); break;
                         case 'undo': this.synths.sweep.filter.frequency.setValueAtTime(1200, now); this.synths.sweep.filter.frequency.exponentialRampToValueAtTime(300, now + 0.1); this.synths.sweep.triggerAttackRelease("0.1", now); break;
                         case 'redo': this.synths.sweep.filter.frequency.setValueAtTime(300, now); this.synths.sweep.filter.frequency.exponentialRampToValueAtTime(1200, now + 0.1); this.synths.sweep.triggerAttackRelease("0.1", now); break;
+                        // Tycoon Edition: Dynamic profit sounds
+                        case 'smallProfit': this.synths.smallProfit.triggerAttackRelease(['C6'], '16n', now); break;
+                        case 'bigProfit': this.synths.bigProfit.triggerAttackRelease(['E6', 'G#6'], '16n', now); break;
+                        case 'hugeProfit':
+                            // Play a chord progression for huge profits (like speculation bubble)
+                            this.synths.hugeProfit.triggerAttackRelease(['E6', 'G#6', 'B6'], '8n', now);
+                            this.synths.hugeProfit.triggerAttackRelease(['F#6', 'A#6', 'C#7'], '8n', now + 0.15);
+                            this.synths.hugeProfit.triggerAttackRelease(['G#6', 'B6', 'D#7'], '8n', now + 0.3);
+                            break;
                     }
                 } catch (err) { console.error(`Fehler beim Abspielen des Sounds '${soundName}':`, err); }
+            },
+            // Tycoon Edition: Play dynamic sound based on profit
+            playProfitSound(profitAmount) {
+                if (profitAmount <= 0) return;
+                if (profitAmount >= 20) {
+                    this.playSound('hugeProfit', profitAmount);
+                } else if (profitAmount >= 10) {
+                    this.playSound('bigProfit', profitAmount);
+                } else {
+                    this.playSound('smallProfit', profitAmount);
+                }
             }
         };
 
@@ -893,15 +982,40 @@
                 try {
                     const offer = this.calculateTradeOffer(sellRes, buyRes);
                     this.validateTradeOffer(sellRes, buyRes, offer);
-                    StateManager.saveState(); 
+                    StateManager.saveState();
+
+                    // Tycoon Edition: Calculate profit (value gained - value given)
+                    const profit = (offer.amountToGet * 4) - (offer.amountToGive * 4);
+
+                    // Store mouse position for floating text before closing modal
+                    const confirmBtn = DOMElements.confirmTradeBtn;
+                    const btnRect = confirmBtn?.getBoundingClientRect();
+                    const mouseX = btnRect ? btnRect.left + btnRect.width / 2 : window.innerWidth / 2;
+                    const mouseY = btnRect ? btnRect.top + btnRect.height / 2 : window.innerHeight / 2;
+
                     UIManager.closeModal(DOMElements.tradeModal);
+
                     if (ModeManager.currentMode === 'basis') {
-                        SoundManager.playSound('kaching');
                         this.executeBasisTrade(sellRes, buyRes);
+                        // Tycoon Edition: Update total trades for basis mode (expert mode handles it in executeExpertTrade)
+                        StateManager.gameState.totalTrades = (StateManager.gameState.totalTrades || 0) + 1;
+                    } else {
+                        this.executeExpertTrade(sellRes, buyRes, offer.amountToGive, offer.amountToGet);
+                        // totalTrades is already incremented in executeExpertTrade
+                    }
+
+                    // Tycoon Edition: Update total profit
+                    StateManager.gameState.totalProfit = (StateManager.gameState.totalProfit || 0) + profit;
+
+                    // Tycoon Edition: Visual and audio feedback
+                    if (profit > 0) {
+                        UIManager.showFloatingProfit(profit, mouseX, mouseY);
+                        SoundManager.playProfitSound(profit);
+                        if (confirmBtn) UIManager.flashTradeButton(confirmBtn);
                     } else {
                         SoundManager.playSound('kaching');
-                        this.executeExpertTrade(sellRes, buyRes, offer.amountToGive, offer.amountToGet);
                     }
+
                     UIManager.resetTradeSelection();
                     UIManager.updateAllUI();
                 } catch (error) { handleGameError(error); }
@@ -1205,10 +1319,11 @@
             updateAllUI() {
                 requestAnimationFrame(() => {
                     if (!StateManager.gameState) return;
-                    this.updatePricesUI(); 
-                    this.updateUndoRedoButtons(); 
+                    this.updatePricesUI();
+                    this.updateUndoRedoButtons();
                     this.updateTradeButtonsUI();
                     this.updateTradingInsightsUI();
+                    this.updateTraderRank(); // Tycoon Edition
                     if (ModeManager.currentMode === 'expert') {
                         DOMElements.roundCounter && (DOMElements.roundCounter.textContent = StateManager.gameState.round); 
                         this.updateSystemDetails(); 
@@ -1498,6 +1613,86 @@
                 const modalBody = DOMElements.infoModalBody;
                 modalBody.querySelectorAll('.help-tab-button').forEach(btn => btn.addEventListener('click', () => { const tabId = btn.dataset.tab; modalBody.querySelectorAll('.help-tab-button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modalBody.querySelectorAll('.help-tab-content').forEach(content => content.classList.add('hidden')); modalBody.querySelector(`#help-${tabId}`).classList.remove('hidden'); }));
                 if (firstTabId) modalBody.querySelector(`.help-tab-button[data-tab="${firstTabId}"]`)?.click();
+            },
+            // Tycoon Edition: Show floating profit text
+            showFloatingProfit(profitAmount, x, y) {
+                const floatingDiv = document.createElement('div');
+                floatingDiv.className = 'floating-profit';
+                floatingDiv.style.left = `${x}px`;
+                floatingDiv.style.top = `${y}px`;
+
+                // Determine color and emoji based on profit
+                let color = '#22c55e'; // green
+                let emoji = '💰';
+                if (profitAmount >= 20) {
+                    color = '#fbbf24'; // gold
+                    emoji = '💎';
+                } else if (profitAmount >= 10) {
+                    color = '#10b981'; // emerald
+                    emoji = '💵';
+                }
+
+                floatingDiv.style.color = color;
+                floatingDiv.textContent = `+${profitAmount} ${emoji}`;
+                document.body.appendChild(floatingDiv);
+
+                // Remove after animation completes
+                setTimeout(() => floatingDiv.remove(), 2000);
+            },
+            // Tycoon Edition: Flash trade button
+            flashTradeButton(buttonElement) {
+                if (!buttonElement) return;
+                buttonElement.classList.add('button-flash');
+                setTimeout(() => buttonElement.classList.remove('button-flash'), 600);
+            },
+            // Tycoon Edition: Get trader rank based on trades and profit
+            getTraderRank() {
+                const trades = StateManager.gameState?.totalTrades || 0;
+                const profit = StateManager.gameState?.totalProfit || 0;
+
+                const ranks = [
+                    { name: 'Neuling', minTrades: 0, minProfit: 0, emoji: '🌱' },
+                    { name: 'Straßenhändler', minTrades: 5, minProfit: 20, emoji: '🛒' },
+                    { name: 'Händler', minTrades: 15, minProfit: 75, emoji: '🏪' },
+                    { name: 'Kaufmann', minTrades: 30, minProfit: 200, emoji: '💼' },
+                    { name: 'Großhändler', minTrades: 50, minProfit: 400, emoji: '🏢' },
+                    { name: 'Großinvestor', minTrades: 80, minProfit: 700, emoji: '💎' },
+                    { name: 'Markt-Tycoon', minTrades: 120, minProfit: 1200, emoji: '👑' },
+                    { name: 'Handels-Legende', minTrades: 200, minProfit: 2500, emoji: '🌟' }
+                ];
+
+                let currentRank = ranks[0];
+                let nextRank = ranks[1];
+
+                for (let i = ranks.length - 1; i >= 0; i--) {
+                    if (trades >= ranks[i].minTrades && profit >= ranks[i].minProfit) {
+                        currentRank = ranks[i];
+                        nextRank = ranks[i + 1] || null;
+                        break;
+                    }
+                }
+
+                return { current: currentRank, next: nextRank, trades, profit };
+            },
+            // Tycoon Edition: Update trader rank display
+            updateTraderRank() {
+                const rankInfo = this.getTraderRank();
+                const rankNameEl = document.getElementById('rank-name');
+                const rankProgressEl = document.getElementById('rank-progress');
+
+                if (rankNameEl) {
+                    rankNameEl.textContent = `${rankInfo.current.emoji} ${rankInfo.current.name}`;
+                }
+
+                if (rankProgressEl) {
+                    if (rankInfo.next) {
+                        const tradesNeeded = rankInfo.next.minTrades - rankInfo.trades;
+                        const profitNeeded = rankInfo.next.minProfit - rankInfo.profit;
+                        rankProgressEl.textContent = `${rankInfo.trades} Trades | Nächster: ${Math.max(tradesNeeded, 0)}T, ${Math.max(profitNeeded, 0)}P`;
+                    } else {
+                        rankProgressEl.textContent = `${rankInfo.trades} Trades | MAX LEVEL!`;
+                    }
+                }
             },
             async toggleFullscreen() {
                 if (!document.fullscreenElement) { try { await document.documentElement.requestFullscreen(); } catch (e) { console.error(e); this.showInfoMessage('Vollbild nicht verfügbar', 'Der Vollbild-Modus wird in dieser Vorschau-Umgebung möglicherweise durch Berechtigungen blockiert.', '⚠️'); } } 
