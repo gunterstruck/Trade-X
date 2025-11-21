@@ -1,0 +1,371 @@
+:root {
+    --bg-main: #0f172a;
+    --bg-panel: #1e293b;
+    --text-light: #f1f5f9;
+    --accent-blue: #3b82f6;
+    --accent-green: #22c55e;
+    --accent-yellow: #eab308;
+    --accent-red: #ef4444;
+    --accent-purple: #a855f7;
+    --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-xl: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+}
+* { box-sizing: border-box; }
+html, body {
+    height: 100%;
+    background: linear-gradient(135deg, var(--bg-main) 0%, #1e293b 50%, #334155 100%);
+}
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-light);
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    overflow-y: hidden; /* Desktop: no body scroll */
+}
+.glass-panel {
+    background: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    transition: min-height 0.3s ease;
+}
+.tile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.resource-icon {
+    font-size: 1.8rem; /* Default for expert mode */
+    line-height: 1;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+.price-display {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.price-display:hover {
+    transform: scale(1.03);
+    box-shadow: var(--shadow-xl);
+}
+.price-up { color: var(--accent-red); text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); animation: priceUpPulse 1s ease-out; }
+.price-down { color: var(--accent-green); text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); animation: priceDownPulse 1s ease-out; }
+@keyframes priceUpPulse { 50% { transform: scale(1.08); } }
+@keyframes priceDownPulse { 50% { transform: scale(0.97); } }
+.event-banner { animation: slideInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform: translateY(-120%); }
+.event-banner-out { animation: slideOutUp 0.6s ease-in forwards; }
+@keyframes slideInDown { from { transform: translateY(-120%) scale(0.8); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes slideOutUp { from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(-120%) scale(0.8); opacity: 0; } }
+.trade-button { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; padding: 0.75rem 0.5rem; }
+.trade-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); }
+.trade-button:active:not(:disabled) { transform: translateY(0); transition: all 0.1s ease; }
+.trade-button:disabled { cursor: not-allowed; opacity: 0.4; }
+.selected-trade { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.7), 0 0 20px rgba(59, 130, 246, 0.4); transform: scale(1.05); }
+.gradient-text { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.floating-element { animation: float 6s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(-10px); } }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-main); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #64748b, #475569); border-radius: 10px; }
+.modal-backdrop { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.7); }
+.stats-card { background: linear-gradient(135deg, rgba(51, 65, 85, 0.8), rgba(30, 41, 59, 0.9)); border: 1px solid rgba(148, 163, 184, 0.2); }
+.loading-spinner { border: 3px solid rgba(59, 130, 246, 0.3); border-radius: 50%; border-top: 3px solid var(--accent-blue); width: 20px; height: 20px; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.scrollable-content { overflow-y: auto; }
+
+/* Tycoon Edition: Floating Text Animation */
+.floating-profit {
+    position: fixed;
+    pointer-events: none;
+    font-weight: bold;
+    font-size: 1.5rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    animation: floatUp 2s ease-out forwards;
+    z-index: 9999;
+}
+@keyframes floatUp {
+    0% { transform: translateY(0) scale(0.5); opacity: 0; }
+    10% { opacity: 1; transform: translateY(-10px) scale(1.2); }
+    100% { transform: translateY(-120px) scale(1); opacity: 0; }
+}
+
+/* Tycoon Edition: Button Flash Effect */
+@keyframes buttonFlash {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    50% { box-shadow: 0 0 30px 10px rgba(34, 197, 94, 0.8); background-color: rgba(34, 197, 94, 0.3); }
+}
+.button-flash {
+    animation: buttonFlash 0.6s ease-out;
+}
+
+/* Tycoon Edition: Trader Rank Display */
+.trader-rank {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(59, 130, 246, 0.2));
+    border: 2px solid rgba(168, 85, 247, 0.5);
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+.trader-rank:hover {
+    border-color: rgba(168, 85, 247, 0.8);
+    transform: scale(1.02);
+}
+.rank-title {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-bottom: 0.25rem;
+}
+.rank-name {
+    font-size: 1rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #a855f7, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.rank-progress {
+    font-size: 0.65rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+}
+
+/* Verbesserte Tab-Button Styles */
+.tab-button {
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+}
+.tab-button.active {
+    background-color: var(--accent-blue) !important;
+    color: white !important;
+}
+.tab-button:not(.active) {
+    background-color: #334155 !important;
+    color: #94a3b8 !important;
+}
+.tab-button:hover:not(.active) {
+    background-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+/* NEW: Help Modal Tabs */
+.help-tab-button {
+    background-color: transparent;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    color: #94a3b8;
+}
+.help-tab-button.active { border-bottom: 2px solid var(--accent-blue); color: white; }
+
+.control-btn { background-color: #334155; border: 1px solid #475569; }
+.control-btn:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; }
+
+.tile-container.collapsed { min-height: auto; }
+[data-event-handler].disabled { pointer-events: none; opacity: 0.6; cursor: not-allowed; }
+
+/* Mode Toggle Styles */
+.expert-only { transition: all 0.3s ease; }
+.basis-mode .expert-only { display: none !important; }
+.basis-only { display: block; } /* Default visible */
+.expert-mode .basis-only { display: none !important; }
+
+.unavailable-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    border-radius: 0.5rem;
+}
+
+/* Resource Icon Size based on mode */
+body.basis-mode .resource-icon {
+    font-size: 1.5rem; /* Smaller for basis mode */
+}
+body.expert-mode .resource-icon {
+    font-size: 1.8rem; /* Default for expert mode */
+}
+@media (min-width: 1024px) {
+    body.expert-mode .resource-icon {
+        font-size: 2rem; /* Desktop size for expert mode */
+    }
+}
+
+/* View Architecture */
+.view-section {
+    width: 100%;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.view-section.hidden {
+    display: none;
+    opacity: 0;
+    transform: scale(0.98);
+}
+.view-section.active {
+    display: block;
+    opacity: 1;
+    transform: scale(1);
+    animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Bottom Navigation Bar */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+}
+.nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    background: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 0.75rem;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 80px;
+}
+.nav-btn:hover {
+    background: rgba(51, 65, 85, 0.8);
+    transform: translateY(-2px);
+}
+.nav-btn.active {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border-color: #3b82f6;
+    color: white;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+.nav-btn .icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+.nav-btn-action {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: 3px solid rgba(15, 23, 42, 0.9);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+    font-size: 2rem;
+    position: relative;
+    top: -10px;
+}
+.nav-btn-action:disabled {
+    opacity: 0.4;
+    background: rgba(100, 116, 139, 0.6);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+.nav-btn-action:not(:disabled):hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.6);
+}
+
+/* Mobile Layout */
+.main-grid {
+    height: calc(100vh - 40px - 72px - 1rem); /* 40px top notice, 72px bottom nav, 1rem padding */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto; /* Make main grid scrollable on mobile */
+    padding-bottom: 0.5rem; /* Add some padding at the bottom */
+}
+
+/* NEW: Mobile Chart Visibility Fix */
+@media (max-width: 1023px) {
+    #insights-panel {
+        height: 300px;
+        display: flex;
+        flex-direction: column;
+    }
+    #insights-panel > .glass-panel {
+        flex: 1;
+        min-height: 0;
+    }
+}
+
+/* Steuerung panel collapse on desktop */
+@media (min-width: 1024px) {
+    body { overflow-y: hidden; } /* Desktop: no body scroll */
+    .main-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(250px, 20%) 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        grid-template-areas:
+            "steuerung markt analyse_top_right" /* events is top right */
+            "steuerung handel events_bottom_right"; /* insights is bottom right */
+        height: calc(100vh - 40px - 72px - 2rem); /* 40px top notice, 72px bottom nav, 2rem padding (lg:p-4) */
+        transition: grid-template-columns 0.3s ease-in-out;
+        overflow-y: hidden; /* Desktop: no main-grid scroll */
+        padding-bottom: 0;
+    }
+    .main-grid.collapsed {
+        grid-template-columns: 60px 1fr;
+    }
+    #steuerung-panel { grid-area: steuerung; }
+    #steuerung-panel.collapsed .tile-header h2 {
+        display: none;
+    }
+    #marktpreise-panel { grid-area: markt; display:flex; flex-direction:column; }
+    #handelsinterface-panel { grid-area: handel; display:flex; flex-direction:column; }
+
+    .expert-mode .main-grid {
+        grid-template-columns: minmax(250px, 20%) 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        grid-template-areas:
+            "steuerung markt analyse_top_right"
+            "steuerung handel events_bottom_right";
+    }
+    .expert-mode .main-grid.collapsed {
+        grid-template-columns: 60px 1fr 1fr;
+    }
+    #insights-panel { grid-area: analyse_top_right; }
+    #events-panel { grid-area: events_bottom_right; }
+}
+
+@media (min-width: 1024px) {
+     #insights-panel {
+         display: flex;
+         flex-direction: column;
+         gap: 1rem;
+     }
+     #insights-panel > .glass-panel {
+         min-height: 0;
+         flex: 1;
+     }
+     #insights-panel .scrollable-content {
+         flex: 1;
+         min-height: 0;
+     }
+}
