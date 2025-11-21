@@ -315,17 +315,17 @@
     <!-- Utility Functions -->
     <script src="js/utils.js"></script>
 
-    <!-- Game Engine -->
-    <script src="js/game-engine.js"></script>
-
     <!-- DOM Cache -->
     <script src="js/dom-cache.js"></script>
 
-    <!-- Managers -->
+    <!-- Managers (must be loaded before game-engine.js) -->
     <script src="js/managers/sound-manager.js"></script>
     <script src="js/managers/mode-manager.js"></script>
     <script src="js/managers/state-manager.js"></script>
     <script src="js/managers/view-manager.js"></script>
+
+    <!-- Game Engine (depends on all managers) -->
+    <script src="js/game-engine.js"></script>
 
     <!-- Main Application -->
     <script>
