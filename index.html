@@ -614,7 +614,10 @@
                         const container = DOMElements[`${type}Options`];
                         if (container) {
                             const btn = document.createElement('button');
-                            Object.assign(btn, { innerHTML: `<div class="resource-icon mx-auto mb-1">${res.icon}</div><div class="text-xs font-medium">${res.name}</div>`, ariaLabel: `${res.name} ${type === 'sell' ? 'verkaufen' : 'erhalten'}`, className: 'trade-button glass-panel text-center rounded-lg hover:bg-slate-600 focus:outline-none transition-transform active:scale-95', onclick: () => (type === 'sell' ? this.selectSell(key) : this.selectBuy(key)) });
+                            btn.innerHTML = `<div class="resource-icon mx-auto mb-1">${res.icon}</div><div class="text-xs font-medium">${res.name}</div>`;
+                            btn.setAttribute('aria-label', `${res.name} ${type === 'sell' ? 'verkaufen' : 'erhalten'}`);
+                            btn.className = 'trade-button glass-panel text-center rounded-lg hover:bg-slate-600 focus:outline-none transition-transform active:scale-95';
+                            btn.onclick = () => (type === 'sell' ? this.selectSell(key) : this.selectBuy(key));
                             btn.dataset.resource = key;
                             container.appendChild(btn);
                         }
