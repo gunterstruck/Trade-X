@@ -4,7 +4,8 @@ const CACHE_NAME = `trade-x-cache-${CACHE_VERSION}`;
 
 // Ressourcen, die beim Install gecacht werden sollen
 const STATIC_RESOURCES = [
-  '/Trade-X/Trade%20X%20All%20V52.html',
+  '/Trade-X/',
+  '/Trade-X/index.html',
   '/Trade-X/manifest.json',
   // CDN Ressourcen
   'https://cdn.tailwindcss.com',
@@ -107,7 +108,7 @@ self.addEventListener('fetch', (event) => {
 
               // Fallback für HTML-Dateien: Zeige gecachte Hauptseite
               if (request.headers.get('accept').includes('text/html')) {
-                return caches.match('/Trade-X/Trade%20X%20All%20V52.html');
+                return caches.match('/Trade-X/index.html');
               }
 
               throw error;
