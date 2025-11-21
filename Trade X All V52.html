@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Trade-X Dynamischer Handelsplatz 5.5</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Dynamischer Handelsplatz für Ressourcen-Trading mit Echtzeit-Preisen und Marktanalysen">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Trade-X">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Favicons and App Icons -->
+    <link rel="icon" type="image/svg+xml" href="icon-template.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+
     <!-- Security: CDN resources with SRI integrity checks -->
     <!-- Note: Tailwind CSS Play CDN does not support SRI as it's dynamically generated.
          For production, consider using a specific Tailwind build with SRI hash. -->
@@ -1528,6 +1546,100 @@
             handleGameError(error);
         }
     });
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Service Worker Registrierung für PWA-Funktionalität
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('✅ Service Worker registriert:', registration.scope);
+
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('🔄 Service Worker Update gefunden');
+
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Neuer Service Worker verfügbar
+                                    console.log('✨ Neue Version verfügbar!');
+
+                                    // Optional: Zeige Benachrichtigung für Update
+                                    if (confirm('Eine neue Version von Trade-X ist verfügbar. Jetzt aktualisieren?')) {
+                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('❌ Service Worker Registrierung fehlgeschlagen:', error);
+                    });
+
+                // Listen for Service Worker messages
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'CACHE_CLEARED') {
+                        console.log('🗑️ Cache wurde geleert');
+                    }
+                });
+
+                // Reload page when new Service Worker takes control
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
+                });
+            });
+        }
+
+        // PWA Install Prompt Handler
+        let deferredPrompt;
+        let installButton;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('💾 PWA Install Prompt verfügbar');
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+
+            // Optional: Zeige einen Install-Button
+            // Dieser Code kann aktiviert werden, wenn ein Install-Button gewünscht ist
+            /*
+            installButton = document.createElement('button');
+            installButton.textContent = '📱 App installieren';
+            installButton.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 z-50';
+            installButton.onclick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`PWA Install: ${outcome}`);
+                    deferredPrompt = null;
+                    installButton.remove();
+                }
+            };
+            document.body.appendChild(installButton);
+            */
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ PWA wurde installiert!');
+            deferredPrompt = null;
+            if (installButton) installButton.remove();
+        });
+
+        // Detect if app is running as PWA
+        if (window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true) {
+            console.log('🚀 App läuft als PWA');
+            document.documentElement.classList.add('pwa-mode');
+        }
     </script>
 </body>
 </html>
