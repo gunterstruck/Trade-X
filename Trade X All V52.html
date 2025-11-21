@@ -4,11 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Trade-X Dynamischer Handelsplatz 5.5</title>
+    <!-- Security: CDN resources with SRI integrity checks -->
+    <!-- Note: Tailwind CSS Play CDN does not support SRI as it's dynamically generated.
+         For production, consider using a specific Tailwind build with SRI hash. -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.4.0/chartjs-plugin-annotation.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"
+            integrity="sha512-TW5s0IT/IppJtu76UbysrBH9Hy/5X41OTAbQuffZFU6lQ1rdcLHzpU5BzVvr/YFykoiMYZVWlr/PX1mDcfM9Qg=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"
+            integrity="sha512-gwSDP1iEKl4KG0wi3N89RAJU91s78jb/TGC6lsbF5IyR2c19Rn7Jl1icK4K4kUiJNwQUEPI7o98T+GJVWNuvIQ=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.4.0/chartjs-plugin-annotation.min.js"
+            integrity="sha512-HrwQrg8S/xLPE6Qwe7XOghA/FOxX+tuVF4TxbvS73/zKJSs/b1gVl/P4MsdfTFWYFYg/ISVNYIINcg35Xvr6QQ=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+          crossorigin="anonymous">
     <style>
         :root {
             --bg-main: #0f172a;
@@ -550,6 +564,14 @@
                 piratenangriff: { name: "Piratenüberfall", type: 'mini', duration: 2, tax: 1, modifier: (r, p) => p + 0.8, chance: 0.08, banner: 'warning', description: "🏴‍☠️ Händler erpresst!", story: "Piraten terrorisieren die Handelswege! Jeder Transport muss nun bewacht werden, was die Kosten in die Höhe treibt.", effectText: "+1 Steuerkarte pro Handel, Alle Preise +0.8" } 
             },
         };
+
+        // Security: HTML escape function to prevent XSS
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return str;
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
         class GameError extends Error {
             constructor(message, type = 'GENERAL') {
@@ -1231,12 +1253,13 @@
             updateActiveEventsUI() {
                 if (ModeManager.currentMode !== 'expert' || !DOMElements.activeEventsContainer) return;
                 if (StateManager.gameState.activeEvents.length === 0) { DOMElements.activeEventsContainer.innerHTML = `<div class="stats-card rounded-lg p-2 text-center text-gray-400"><div class="text-lg mb-1">🌙</div><p class="text-xs">Markt ruhig</p></div>`; return; }
+                // Security: Escape user-controllable content to prevent XSS
                 DOMElements.activeEventsContainer.innerHTML = StateManager.gameState.activeEvents.map(activeEvent => {
                     const eventConfig = CONFIG.EVENTS[activeEvent.key];
                     const bannerClass = { critical: 'border-red-500', warning: 'border-yellow-500', info: 'border-blue-500', success: 'border-green-500' }[eventConfig.banner];
                     let effectText = eventConfig.effectText;
                     if (activeEvent.targetResource) effectText += ` (${StateManager.gameState.resources[activeEvent.targetResource].icon})`;
-                    return `<div class="stats-card ${bannerClass} border-l-4 p-2 mb-2"><div class="flex justify-between items-start"><h6 class="font-bold text-white">${eventConfig.name}</h6><div class="text-gray-400 text-xs whitespace-nowrap pl-2">⏱️ ${activeEvent.duration}R</div></div><p class="text-xs mt-1 mb-2 text-gray-300 italic">"${eventConfig.story}"</p><div class="text-xs space-y-1"><p><b>Auswirkung:</b> ${effectText}</p></div></div>`;
+                    return `<div class="stats-card ${bannerClass} border-l-4 p-2 mb-2"><div class="flex justify-between items-start"><h6 class="font-bold text-white">${escapeHTML(eventConfig.name)}</h6><div class="text-gray-400 text-xs whitespace-nowrap pl-2">⏱️ ${activeEvent.duration}R</div></div><p class="text-xs mt-1 mb-2 text-gray-300 italic">"${escapeHTML(eventConfig.story)}"</p><div class="text-xs space-y-1"><p><b>Auswirkung:</b> ${effectText}</p></div></div>`;
                 }).join('');
             },
             updateTradeHistoryUI() { 
@@ -1310,13 +1333,14 @@
                     insightsEl.innerHTML = htmlContent;
                 }
             },
-            showEventBanner(event) { 
+            showEventBanner(event) {
                 if (ModeManager.currentMode !== 'expert' || !DOMElements.eventBannerContainer) return;
-                const c = DOMElements.eventBannerContainer, b = document.createElement('div'), cl = { critical: 'bg-red-600', warning: 'bg-yellow-600', info: 'bg-blue-600', success: 'bg-green-600' }; 
-                b.className = `event-banner ${cl[event.banner]} p-4 text-center text-white font-bold shadow-2xl rounded-xl`; 
-                b.innerHTML = `<div class="text-2xl mb-2">${event.name}</div><div class="text-sm opacity-90">${event.description}</div>`; 
-                c.innerHTML = ''; c.appendChild(b); 
-                setTimeout(() => { b.classList.add('event-banner-out'); setTimeout(() => b.remove(), 600); }, (event.duration || 3) * CONFIG.UI.BANNER_DISPLAY_TIME_FACTOR); 
+                const c = DOMElements.eventBannerContainer, b = document.createElement('div'), cl = { critical: 'bg-red-600', warning: 'bg-yellow-600', info: 'bg-blue-600', success: 'bg-green-600' };
+                b.className = `event-banner ${cl[event.banner]} p-4 text-center text-white font-bold shadow-2xl rounded-xl`;
+                // Security: Escape event content to prevent XSS
+                b.innerHTML = `<div class="text-2xl mb-2">${escapeHTML(event.name)}</div><div class="text-sm opacity-90">${escapeHTML(event.description)}</div>`;
+                c.innerHTML = ''; c.appendChild(b);
+                setTimeout(() => { b.classList.add('event-banner-out'); setTimeout(() => b.remove(), 600); }, (event.duration || 3) * CONFIG.UI.BANNER_DISPLAY_TIME_FACTOR);
             },
             debouncedUpdateChart: null,
             initChart() {
@@ -1415,12 +1439,21 @@
                 DOMElements.cancelTradeBtn.onclick = () => { this.closeModal(DOMElements.tradeModal); DOMElements.confirmTradeBtn.classList.remove('hidden'); DOMElements.cancelTradeBtn.textContent = "❌ Abbrechen"; DOMElements.cancelTradeBtn.className = "bg-red-600 hover:red-bg-700 text-white font-bold py-3 px-8 rounded-xl transition-transform hover:scale-105"; };
                 this.openModal(DOMElements.tradeModal);
             },
-            showInfoMessage(title, bodyHTML, icon = '💡') { 
+            showInfoMessage(title, bodyHTML, icon = '💡', allowHTML = false) {
                 if (!DOMElements.infoModal) return;
-                if (DOMElements.infoModalIcon) DOMElements.infoModalIcon.textContent = icon; 
-                if (DOMElements.infoModalTitle) DOMElements.infoModalTitle.textContent = title; 
-                if (DOMElements.infoModalBody) DOMElements.infoModalBody.innerHTML = bodyHTML; 
-                this.openModal(DOMElements.infoModal); 
+                if (DOMElements.infoModalIcon) DOMElements.infoModalIcon.textContent = icon;
+                if (DOMElements.infoModalTitle) DOMElements.infoModalTitle.textContent = title;
+                // Security: Only allow HTML for trusted internal content, escape everything else
+                if (DOMElements.infoModalBody) {
+                    if (allowHTML) {
+                        // Only for internal trusted content (help modal, etc.)
+                        DOMElements.infoModalBody.innerHTML = bodyHTML;
+                    } else {
+                        // Escape all user-controllable content
+                        DOMElements.infoModalBody.textContent = bodyHTML;
+                    }
+                }
+                this.openModal(DOMElements.infoModal);
             },
             showHelpModal() {
                 const helpContentData = {
@@ -1442,7 +1475,8 @@
                     contentHtml += `<div id="help-${tab.id}" class="help-tab-content ${index === 0 ? '' : 'hidden'} space-y-3">${tab.id === 'events' ? '<ul class="list-disc list-inside mt-2 text-gray-400 text-sm">' + tabContentBody + '</ul>' : tabContentBody}</div>`;
                 });
                 const body = `<div class="flex border-b border-slate-600 mb-4">${tabsHtml}</div><div class="scrollable-content pr-2" style="max-height: 50vh;">${contentHtml}</div>`;
-                this.showInfoMessage(title, body, icon);
+                // Allow HTML for trusted internal help content
+                this.showInfoMessage(title, body, icon, true);
                 const modalBody = DOMElements.infoModalBody;
                 modalBody.querySelectorAll('.help-tab-button').forEach(btn => btn.addEventListener('click', () => { const tabId = btn.dataset.tab; modalBody.querySelectorAll('.help-tab-button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modalBody.querySelectorAll('.help-tab-content').forEach(content => content.classList.add('hidden')); modalBody.querySelector(`#help-${tabId}`).classList.remove('hidden'); }));
                 if (firstTabId) modalBody.querySelector(`.help-tab-button[data-tab="${firstTabId}"]`)?.click();
@@ -1469,13 +1503,14 @@
                     setTimeout(() => { if (!this.priceChart) this.initChart(); else { this.priceChart.resize(); if (this.debouncedUpdateChart) this.debouncedUpdateChart(); } }, 50);
                 }
             },
-            showResourceInfo(key) { 
+            showResourceInfo(key) {
                 if (ModeManager.currentMode === 'basis' || !DOMElements.infoModal) return;
-                const res = StateManager.gameState.resources[key], history = StateManager.gameState.priceHistory[key]; 
-                if (DOMElements.infoModalIcon) DOMElements.infoModalIcon.innerHTML = `<div class="resource-icon mx-auto w-16 h-16 flex items-center justify-center text-4xl">${res.icon}</div>`; 
-                if (DOMElements.infoModalTitle) DOMElements.infoModalTitle.textContent = res.name; 
-                if (DOMElements.infoModalBody) DOMElements.infoModalBody.innerHTML = `<p>Aktueller Preis: <b class="text-white">${history[history.length - 1].toFixed(2)}</b></p><p>Durchschnitt (letzte 10 Runden): <b class="text-white">${(history.reduce((a, b) => a + b, 0) / history.length).toFixed(2)}</b></p><p>Historie (letzte 10 Runden): <b class="text-green-400">${Math.min(...history).toFixed(2)}</b> - <b class="text-red-400">${Math.max(...history).toFixed(2)}</b></p>`; 
-                this.openModal(DOMElements.infoModal); 
+                const res = StateManager.gameState.resources[key], history = StateManager.gameState.priceHistory[key];
+                if (DOMElements.infoModalIcon) DOMElements.infoModalIcon.innerHTML = `<div class="resource-icon mx-auto w-16 h-16 flex items-center justify-center text-4xl">${res.icon}</div>`;
+                if (DOMElements.infoModalTitle) DOMElements.infoModalTitle.textContent = res.name;
+                // Security: Use template with safe data (no user input)
+                if (DOMElements.infoModalBody) DOMElements.infoModalBody.innerHTML = `<p>Aktueller Preis: <b class="text-white">${history[history.length - 1].toFixed(2)}</b></p><p>Durchschnitt (letzte 10 Runden): <b class="text-white">${(history.reduce((a, b) => a + b, 0) / history.length).toFixed(2)}</b></p><p>Historie (letzte 10 Runden): <b class="text-green-400">${Math.min(...history).toFixed(2)}</b> - <b class="text-red-400">${Math.max(...history).toFixed(2)}</b></p>`;
+                this.openModal(DOMElements.infoModal);
             },
         };
 
