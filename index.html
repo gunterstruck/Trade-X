@@ -244,9 +244,100 @@
             }
         }
 
+        /* View Architecture */
+        .view-section {
+            width: 100%;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .view-section.hidden {
+            display: none;
+            opacity: 0;
+            transform: scale(0.98);
+        }
+        .view-section.active {
+            display: block;
+            opacity: 1;
+            transform: scale(1);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Bottom Navigation Bar */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            z-index: 100;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.5rem 1rem;
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 0.75rem;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 80px;
+        }
+        .nav-btn:hover {
+            background: rgba(51, 65, 85, 0.8);
+            transform: translateY(-2px);
+        }
+        .nav-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        .nav-btn .icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .nav-btn-action {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: 3px solid rgba(15, 23, 42, 0.9);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+            font-size: 2rem;
+            position: relative;
+            top: -10px;
+        }
+        .nav-btn-action:disabled {
+            opacity: 0.4;
+            background: rgba(100, 116, 139, 0.6);
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .nav-btn-action:not(:disabled):hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 12px 30px rgba(99, 102, 241, 0.6);
+        }
+
         /* Mobile Layout */
         .main-grid {
-            height: calc(100vh - 40px - 1rem); /* 40px for top notice, 1rem for body padding */
+            height: calc(100vh - 40px - 72px - 1rem); /* 40px top notice, 72px bottom nav, 1rem padding */
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
@@ -278,7 +369,7 @@
                 grid-template-areas:
                     "steuerung markt analyse_top_right" /* events is top right */
                     "steuerung handel events_bottom_right"; /* insights is bottom right */
-                height: 100%;
+                height: calc(100vh - 40px - 72px - 2rem); /* 40px top notice, 72px bottom nav, 2rem padding (lg:p-4) */
                 transition: grid-template-columns 0.3s ease-in-out;
                 overflow-y: hidden; /* Desktop: no main-grid scroll */
                 padding-bottom: 0;
@@ -330,7 +421,9 @@
         Trade-X Companion APP
     </div>
 
-    <div class="main-grid w-full" style="margin-top: 40px;">
+    <!-- Market View (Existing Functionality) -->
+    <section id="view-market" class="view-section active">
+        <div class="main-grid w-full" style="margin-top: 40px;">
 
         <!-- Steuerung -->
         <div id="steuerung-panel" class="col-span-1 lg:row-span-1 glass-panel rounded-xl p-3 tile-container">
@@ -539,7 +632,28 @@
                 <div id="trade-summary" class="mt-4 text-center h-8 text-lg font-medium"></div>
             </div>
         </div>
-    </div>
+        </div>
+    </section>
+
+    <!-- Board View (Future Game Board Implementation) -->
+    <section id="view-board" class="view-section hidden">
+        <div class="flex flex-col items-center justify-center h-screen" style="margin-top: 40px;">
+            <div class="glass-panel rounded-2xl p-8 text-center max-w-2xl mx-auto">
+                <div class="text-6xl mb-6">🎲</div>
+                <h1 class="text-4xl font-bold gradient-text mb-4">Spielbrett-Ansicht</h1>
+                <p class="text-xl text-gray-300 mb-6">Hier entsteht das digitale Spielbrett mit 40 Feldern.</p>
+                <div class="stats-card rounded-lg p-4 text-left">
+                    <h3 class="text-sm font-bold text-blue-300 mb-2">🚀 Coming Soon:</h3>
+                    <ul class="text-sm text-gray-300 space-y-1">
+                        <li>• Digitales Spielbrett (40 Felder im Kreis)</li>
+                        <li>• Würfel-Mechanik mit Animationen</li>
+                        <li>• Spielfiguren & Bewegungen</li>
+                        <li>• Automatischer Wechsel zum Markt bei Handelskarte</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- Overlays -->
     <div id="event-banner-container" class="absolute top-0 left-0 right-0 p-4 z-50 pointer-events-none"></div>
@@ -1740,6 +1854,99 @@
         } catch (error) {
             handleGameError(error);
         }
+
+        // --- VIEW MANAGER: Navigation between Board and Market Views ---
+        const ViewManager = {
+            currentView: 'market',
+
+            init() {
+                console.log('🎯 ViewManager initialisiert');
+
+                // Setup navigation buttons
+                const navBtnBoard = document.getElementById('nav-btn-board');
+                const navBtnMarket = document.getElementById('nav-btn-market');
+
+                if (navBtnBoard) {
+                    navBtnBoard.addEventListener('click', () => this.switchView('board'));
+                }
+
+                if (navBtnMarket) {
+                    navBtnMarket.addEventListener('click', () => this.switchView('market'));
+                }
+            },
+
+            switchView(viewId) {
+                if (this.currentView === viewId) return; // Already on this view
+
+                console.log(`🔄 Wechsle View: ${this.currentView} → ${viewId}`);
+                SoundManager.playSound('click');
+
+                // Hide all views
+                const views = document.querySelectorAll('.view-section');
+                views.forEach(view => {
+                    view.classList.remove('active');
+                    view.classList.add('hidden');
+                });
+
+                // Show target view
+                const targetView = document.getElementById(`view-${viewId}`);
+                if (targetView) {
+                    targetView.classList.remove('hidden');
+                    targetView.classList.add('active');
+                }
+
+                // Update navigation buttons
+                document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                const activeBtn = document.querySelector(`.nav-btn[data-view="${viewId}"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                }
+
+                // Update current view
+                this.currentView = viewId;
+
+                // Special handling when switching to market view
+                if (viewId === 'market') {
+                    this.onMarketViewActivated();
+                }
+            },
+
+            onMarketViewActivated() {
+                // Ensure charts are properly rendered when returning to market view
+                // Canvas elements can lose their context when hidden
+                console.log('📊 Market View aktiviert - aktualisiere Charts');
+
+                setTimeout(() => {
+                    // Trigger chart resize/redraw if in expert mode
+                    if (ModeManager.currentMode === 'expert' && UIManager.priceChart) {
+                        try {
+                            UIManager.priceChart.resize();
+                            if (UIManager.debouncedUpdateChart) {
+                                UIManager.debouncedUpdateChart();
+                            }
+                        } catch (error) {
+                            console.error('Chart update failed:', error);
+                        }
+                    }
+
+                    // Update seasonal chart if exists
+                    if (UIManager.seasonalChart) {
+                        try {
+                            UIManager.seasonalChart.resize();
+                            UIManager.updateSeasonalChart();
+                        } catch (error) {
+                            console.error('Seasonal chart update failed:', error);
+                        }
+                    }
+                }, 100);
+            }
+        };
+
+        // Initialize ViewManager
+        ViewManager.init();
     });
     </script>
 
@@ -1836,5 +2043,20 @@
             document.documentElement.classList.add('pwa-mode');
         }
     </script>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-btn" id="nav-btn-board" data-view="board">
+            <span class="icon">📍</span>
+            <span>Brett</span>
+        </button>
+        <button class="nav-btn nav-btn-action" id="nav-btn-action" disabled title="Würfeln (coming soon)">
+            🎲
+        </button>
+        <button class="nav-btn active" id="nav-btn-market" data-view="market">
+            <span class="icon">📈</span>
+            <span>Markt</span>
+        </button>
+    </nav>
 </body>
 </html>
