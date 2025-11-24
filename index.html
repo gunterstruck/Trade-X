@@ -45,13 +45,30 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="p-2 lg:p-4">
-    <!-- Allgemeiner Hinweis -->
-    <div class="fixed top-0 left-0 right-0 z-50 p-2 text-white text-xs text-center font-bold" style="background-color: #1a202c; border-bottom: 2px solid #2d3748;">
-        Trade-X Companion APP
-    </div>
+<body class="p-2 lg:p-4 window-mode">
+    <!-- Draggable Window Container -->
+    <div id="draggable-window">
+        <!-- Window Titlebar -->
+        <div id="window-titlebar">
+            <div class="window-title">
+                <span class="window-title-icon">⚡</span>
+                <span>Trade-X Board Game</span>
+            </div>
+            <div class="window-controls">
+                <button id="window-minimize-btn" class="window-control-btn minimize-btn" title="Minimieren">_</button>
+                <button id="window-maximize-btn" class="window-control-btn maximize-btn" title="Maximieren">□</button>
+                <button id="window-close-btn" class="window-control-btn close-btn" title="Schließen">×</button>
+            </div>
+        </div>
 
-    <!-- Market View (Existing Functionality) -->
+        <!-- Window Content -->
+        <div class="window-content">
+            <!-- Allgemeiner Hinweis -->
+            <div class="fixed top-0 left-0 right-0 z-50 p-2 text-white text-xs text-center font-bold" style="background-color: #1a202c; border-bottom: 2px solid #2d3748;">
+                Trade-X Companion APP
+            </div>
+
+            <!-- Market View (Existing Functionality) -->
     <section id="view-market" class="view-section active">
         <div class="main-grid w-full" style="margin-top: 40px;">
 
@@ -385,6 +402,7 @@
     <script src="js/managers/player-manager.js"></script>
     <script src="js/managers/board-manager.js"></script>
     <script src="js/managers/ui-manager.js"></script>
+    <script src="js/managers/window-manager.js"></script>
 
     <!-- Game Engine (depends on all managers) -->
     <script src="js/game-engine.js"></script>
@@ -508,19 +526,23 @@
         }
     </script>
 
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-        <button class="nav-btn" id="nav-btn-board" data-view="board">
-            <span class="icon">📍</span>
-            <span>Brett</span>
-        </button>
-        <button class="nav-btn nav-btn-action" id="nav-btn-action" disabled title="Würfeln (coming soon)">
-            🎲
-        </button>
-        <button class="nav-btn active" id="nav-btn-market" data-view="market">
-            <span class="icon">📈</span>
-            <span>Markt</span>
-        </button>
-    </nav>
+            <!-- Bottom Navigation -->
+            <nav class="bottom-nav">
+                <button class="nav-btn" id="nav-btn-board" data-view="board">
+                    <span class="icon">📍</span>
+                    <span>Brett</span>
+                </button>
+                <button class="nav-btn nav-btn-action" id="nav-btn-action" disabled title="Würfeln (coming soon)">
+                    🎲
+                </button>
+                <button class="nav-btn active" id="nav-btn-market" data-view="market">
+                    <span class="icon">📈</span>
+                    <span>Markt</span>
+                </button>
+            </nav>
+        </div>
+        <!-- End Window Content -->
+    </div>
+    <!-- End Draggable Window -->
 </body>
 </html>

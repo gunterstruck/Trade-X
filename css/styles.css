@@ -1063,3 +1063,211 @@ body.expert-mode .resource-icon {
         font-size: 1.4rem;
     }
 }
+
+/* ============================================
+   DRAGGABLE WINDOW STYLES
+   ============================================ */
+
+#draggable-window {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 1200px;
+    height: 800px;
+    max-width: 95vw;
+    max-height: 95vh;
+    background: rgba(15, 23, 42, 0.95);
+    border: 2px solid rgba(148, 163, 184, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(20px);
+}
+
+#draggable-window.maximized {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0;
+    border: none;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+}
+
+#draggable-window.minimized {
+    height: 40px !important;
+    overflow: hidden;
+}
+
+#draggable-window.minimized .window-content {
+    display: none;
+}
+
+/* Window Titlebar */
+#window-titlebar {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95));
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+    height: 40px;
+}
+
+#window-titlebar:active {
+    cursor: grabbing;
+}
+
+.window-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #f1f5f9;
+}
+
+.window-title-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.window-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.window-control-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(51, 65, 85, 0.8);
+    color: #94a3b8;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.window-control-btn:hover {
+    background: rgba(71, 85, 105, 0.9);
+    color: white;
+    transform: scale(1.1);
+}
+
+.window-control-btn.close-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.window-control-btn.minimize-btn:hover {
+    background: #eab308;
+    color: white;
+}
+
+.window-control-btn.maximize-btn:hover {
+    background: #22c55e;
+    color: white;
+}
+
+/* Window Content */
+.window-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Adjust body padding when window mode is active */
+body.window-mode {
+    padding: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    overflow: hidden;
+}
+
+body.window-mode::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+    z-index: -1;
+    animation: backgroundPulse 15s ease-in-out infinite;
+}
+
+@keyframes backgroundPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+}
+
+/* Adjust view sections in window mode */
+body.window-mode .view-section {
+    height: 100%;
+}
+
+body.window-mode .main-grid {
+    height: calc(100% - 40px - 72px) !important;
+    margin-top: 40px;
+}
+
+body.window-mode .board-container {
+    height: calc(100% - 40px - 72px) !important;
+    margin-top: 40px;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1280px) {
+    #draggable-window {
+        width: 95vw;
+        height: 90vh;
+    }
+}
+
+@media (max-width: 768px) {
+    #draggable-window {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+        max-width: 100vw;
+        max-height: 100vh;
+    }
+
+    #window-titlebar {
+        cursor: default;
+    }
+
+    .window-control-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+}
+
+/* Drag ghost effect */
+#draggable-window.dragging {
+    opacity: 0.9;
+    cursor: grabbing;
+}
+
+/* Window shadow enhancement when dragging */
+#draggable-window:not(.maximized):active {
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.8);
+}
