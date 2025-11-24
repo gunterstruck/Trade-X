@@ -8,7 +8,7 @@ const StateManager = {
     init() { this.resetGame(); },
     resetGame() {
         SoundManager.playSound('reset');
-        const baseState = { history: [], historyIndex: -1, prices: {}, priceHistory: {}, marketPressure: {}, sharedPool: {} };
+        const baseState = { history: [], historyIndex: -1, prices: {}, priceHistory: {}, marketPressure: {}, sharedPool: {}, isMultiplayer: true, playerCount: 4, currentTurn: 1 };
         if (ModeManager.currentMode === 'basis') {
             this.gameState = { ...baseState, mode: 'basis', resources: BASIS_RESOURCES, basisTradeFee: parseInt(DOMElements.basisFeeSelector?.value || 2, 10), totalTrades: 0, totalProfit: 0 };
             CONFIG.GAME.MAX_HISTORY_STEPS = CONFIG.GAME.MAX_HISTORY_STEPS_BASIS;
@@ -31,6 +31,12 @@ const StateManager = {
         UIManager.resetTradeSelection();
         this.saveState();
         UIManager.updateAllUI();
+
+        // Initialize multiplayer if PlayerManager is available
+        if (typeof PlayerManager !== 'undefined' && this.gameState.isMultiplayer) {
+            PlayerManager.setupPlayers(this.gameState.playerCount);
+            PlayerManager.startGame();
+        }
     },
     saveState() {
         try {
