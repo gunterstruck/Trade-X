@@ -332,12 +332,12 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         try {
-            SoundManager.playSound('click');
             SoundManager.initializeSynths();
             UIManager.setupUI();
             UIManager.initChart();
             UIManager.initSeasonalChart();
             StateManager.init();
+            SoundManager.playSound('click');
             setTimeout(() => {
                 if (ModeManager.currentMode === 'expert') UIManager.showEventBanner({ name: "Handelsplatz bereit!", banner: 'success', description: "🚀 Viel Erfolg beim Handeln!" });
             }, 1000);
