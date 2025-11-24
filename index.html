@@ -411,6 +411,9 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         try {
+            // Initialize WindowManager first (before other managers need DOM elements)
+            WindowManager.init();
+
             SoundManager.initializeSynths();
             UIManager.setupUI();
             UIManager.initChart();
