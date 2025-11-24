@@ -1,5 +1,5 @@
 // Service Worker für Trade-X PWA
-const CACHE_VERSION = 'trade-x-v1.0.2';
+const CACHE_VERSION = 'trade-x-v1.0.3';
 const CACHE_NAME = `trade-x-cache-${CACHE_VERSION}`;
 
 // Ressourcen, die beim Install gecacht werden sollen
@@ -7,6 +7,19 @@ const STATIC_RESOURCES = [
   '/Trade-X/',
   '/Trade-X/index.html',
   '/Trade-X/manifest.json',
+  // CSS
+  '/Trade-X/css/styles.css',
+  // JavaScript Core
+  '/Trade-X/js/config.js',
+  '/Trade-X/js/utils.js',
+  '/Trade-X/js/dom-cache.js',
+  '/Trade-X/js/game-engine.js',
+  // JavaScript Managers
+  '/Trade-X/js/managers/sound-manager.js',
+  '/Trade-X/js/managers/mode-manager.js',
+  '/Trade-X/js/managers/state-manager.js',
+  '/Trade-X/js/managers/view-manager.js',
+  '/Trade-X/js/managers/ui-manager.js',
   // CDN Ressourcen
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js',
