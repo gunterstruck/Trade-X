@@ -19,17 +19,23 @@ const WindowManager = {
      * Initialize the window manager
      */
     init() {
+        console.log('WindowManager: Initializing...');
         this.windowElement = document.getElementById('draggable-window');
         this.titlebarElement = document.getElementById('window-titlebar');
 
         if (!this.windowElement || !this.titlebarElement) {
-            console.warn('WindowManager: Required elements not found');
+            console.error('WindowManager: Required elements not found', {
+                window: this.windowElement,
+                titlebar: this.titlebarElement
+            });
             return;
         }
 
+        console.log('WindowManager: Elements found, setting up listeners');
         this.setupEventListeners();
         this.loadWindowPosition();
         this.ensureWindowInViewport();
+        console.log('WindowManager: Initialized successfully');
     },
 
     /**
@@ -303,9 +309,5 @@ const WindowManager = {
     }
 };
 
-// Auto-initialize if DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => WindowManager.init());
-} else {
-    WindowManager.init();
-}
+// Note: WindowManager will be initialized in index.html after other managers
+// This prevents initialization order issues
