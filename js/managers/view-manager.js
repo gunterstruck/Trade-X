@@ -55,9 +55,26 @@ const ViewManager = {
         // Update current view
         this.currentView = viewId;
 
-        // Special handling when switching to market view
+        // Special handling based on view
         if (viewId === 'market') {
             this.onMarketViewActivated();
+        } else if (viewId === 'board') {
+            this.onBoardViewActivated();
+        }
+    },
+
+    onBoardViewActivated() {
+        console.log('🎲 Board View aktiviert');
+
+        // Show board player HUD
+        const boardHUD = document.getElementById('board-player-hud');
+        if (boardHUD) {
+            boardHUD.style.display = 'block';
+        }
+
+        // Update player UI if PlayerManager is available
+        if (typeof PlayerManager !== 'undefined') {
+            PlayerManager.updateUI();
         }
     },
 
@@ -65,6 +82,12 @@ const ViewManager = {
         // Ensure charts are properly rendered when returning to market view
         // Canvas elements can lose their context when hidden
         console.log('📊 Market View aktiviert - aktualisiere Charts');
+
+        // Hide board player HUD
+        const boardHUD = document.getElementById('board-player-hud');
+        if (boardHUD) {
+            boardHUD.style.display = 'none';
+        }
 
         setTimeout(() => {
             // Trigger chart resize/redraw if in expert mode

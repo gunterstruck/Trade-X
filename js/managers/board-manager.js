@@ -7,7 +7,8 @@ const BoardManager = {
     // Board State
     totalFields: 40,
     currentPosition: 1,
-    playerToken: null,
+    playerToken: null, // Legacy single token (kept for compatibility)
+    playerTokens: [], // Array of tokens for multiplayer
     isRolling: false,
     isMoving: false,
 
@@ -32,7 +33,19 @@ const BoardManager = {
         console.log('🎲 BoardManager initialisiert');
         this.generateFields();
         this.renderBoard();
-        this.createPlayerToken();
+
+        // Check if multiplayer mode
+        const isMultiplayer = StateManager.gameState?.isMultiplayer;
+
+        if (isMultiplayer && typeof PlayerManager !== 'undefined') {
+            // Wait for PlayerManager to be ready
+            setTimeout(() => {
+                this.createMultiplayerTokens();
+            }, 100);
+        } else {
+            this.createPlayerToken();
+        }
+
         this.setupEventListeners();
         this.updateUI();
     },
@@ -113,7 +126,7 @@ const BoardManager = {
     },
 
     /**
-     * Create player token
+     * Create player token (legacy single player)
      */
     createPlayerToken() {
         const board = document.getElementById('game-board');
@@ -130,7 +143,35 @@ const BoardManager = {
     },
 
     /**
-     * Update player token position
+     * Create multiplayer tokens (one per player)
+     */
+    createMultiplayerTokens() {
+        const board = document.getElementById('game-board');
+        if (!board || typeof PlayerManager === 'undefined') return;
+
+        // Clear existing tokens
+        this.playerTokens.forEach(token => token.remove());
+        this.playerTokens = [];
+
+        // Create token for each player
+        PlayerManager.players.forEach((player, index) => {
+            const token = document.createElement('div');
+            token.className = 'player-token';
+            token.dataset.player = player.id;
+            token.innerHTML = player.avatarIcon;
+
+            board.appendChild(token);
+            this.playerTokens.push(token);
+
+            // Position at player's current position
+            this.updateMultiplayerTokenPosition(player.id, player.position, false);
+        });
+
+        console.log(`✅ ${this.playerTokens.length} Spieler-Tokens erstellt`);
+    },
+
+    /**
+     * Update player token position (legacy single player)
      */
     updatePlayerPosition(animate = true) {
         if (!this.playerToken) return;
@@ -160,6 +201,61 @@ const BoardManager = {
     },
 
     /**
+     * Update multiplayer token position
+     * @param {number} playerId - Player ID
+     * @param {number} position - Field number (1-40)
+     * @param {boolean} animate - Whether to animate the movement
+     */
+    updateMultiplayerTokenPosition(playerId, position, animate = true) {
+        const token = this.playerTokens.find(t => parseInt(t.dataset.player) === playerId);
+        if (!token) return;
+
+        const fieldEl = document.querySelector(`[data-field-number="${position}"]`);
+        if (!fieldEl) return;
+
+        const rect = fieldEl.getBoundingClientRect();
+        const boardRect = document.getElementById('game-board').getBoundingClientRect();
+
+        const x = ((rect.left + rect.width / 2) - boardRect.left) / boardRect.width * 100;
+        const y = ((rect.top + rect.height / 2) - boardRect.top) / boardRect.height * 100;
+
+        // Check if multiple tokens are on same field (for stacking)
+        const tokensOnField = this.getTokensOnField(position);
+        const stackIndex = tokensOnField.indexOf(playerId);
+
+        token.style.left = `${x}%`;
+        token.style.top = `${y}%`;
+        token.dataset.stack = stackIndex + 1;
+
+        if (animate) {
+            token.classList.add('player-moving');
+            setTimeout(() => {
+                token.classList.remove('player-moving');
+            }, 400);
+        }
+    },
+
+    /**
+     * Get all player IDs on a specific field
+     */
+    getTokensOnField(position) {
+        if (typeof PlayerManager === 'undefined') return [];
+        return PlayerManager.players
+            .filter(p => p.position === position)
+            .map(p => p.id);
+    },
+
+    /**
+     * Update all multiplayer token positions
+     */
+    updateAllTokenPositions() {
+        if (typeof PlayerManager === 'undefined') return;
+        PlayerManager.players.forEach(player => {
+            this.updateMultiplayerTokenPosition(player.id, player.position, false);
+        });
+    },
+
+    /**
      * Setup event listeners
      */
     setupEventListeners() {
@@ -183,10 +279,14 @@ const BoardManager = {
     },
 
     /**
-     * Roll the dice
+     * Roll the dice (multiplayer aware)
      */
     async rollDice() {
         if (this.isRolling || this.isMoving) return;
+
+        // Get active player from PlayerManager
+        const activePlayer = typeof PlayerManager !== 'undefined' ? PlayerManager.getActivePlayer() : null;
+        const isMultiplayer = StateManager.gameState?.isMultiplayer && activePlayer;
 
         this.isRolling = true;
         const rollBtn = document.getElementById('roll-dice-btn');
@@ -216,7 +316,11 @@ const BoardManager = {
         await this.sleep(300);
 
         // Move player
-        await this.movePlayer(roll);
+        if (isMultiplayer) {
+            await this.moveMultiplayerPlayer(activePlayer, roll);
+        } else {
+            await this.movePlayer(roll);
+        }
 
         this.isRolling = false;
         if (rollBtn) rollBtn.disabled = false;
@@ -242,7 +346,7 @@ const BoardManager = {
     },
 
     /**
-     * Move player by steps
+     * Move player by steps (legacy single player)
      */
     async movePlayer(steps) {
         this.isMoving = true;
@@ -271,10 +375,49 @@ const BoardManager = {
     },
 
     /**
+     * Move multiplayer player by steps
+     */
+    async moveMultiplayerPlayer(player, steps) {
+        this.isMoving = true;
+
+        for (let i = 0; i < steps; i++) {
+            player.position++;
+
+            // Wrap around at 40
+            if (player.position > this.totalFields) {
+                player.position = 1;
+                SoundManager.playSound('levelup');
+
+                // Give start bonus (pass GO)
+                console.log(`🎉 ${player.name} passiert START!`);
+                // TODO: Implement start bonus
+            } else {
+                SoundManager.playSound('click');
+            }
+
+            this.updateMultiplayerTokenPosition(player.id, player.position, true);
+            this.updateUI();
+
+            await this.sleep(400);
+        }
+
+        this.isMoving = false;
+
+        // Check field action
+        await this.handleFieldAction(player);
+
+        // Update player corner highlight
+        if (typeof PlayerManager !== 'undefined') {
+            PlayerManager.updatePlayerHighlight();
+        }
+    },
+
+    /**
      * Handle field action after landing
      */
-    async handleFieldAction() {
-        const field = this.fields[this.currentPosition - 1];
+    async handleFieldAction(player = null) {
+        const position = player ? player.position : this.currentPosition;
+        const field = this.fields[position - 1];
 
         // Update field info panel
         this.updateFieldInfo(field);
@@ -284,28 +427,86 @@ const BoardManager = {
             await this.sleep(800);
             SoundManager.playSound('success');
 
-            // Switch to market view
-            ViewManager.switchView('market');
+            // In multiplayer, give resources instead of switching view
+            if (player) {
+                this.giveMarketResources(player);
 
-            // Show notification
-            if (UIManager && UIManager.showEventBanner) {
-                UIManager.showEventBanner({
-                    name: '💰 Marktplatz erreicht!',
-                    banner: 'success',
-                    description: 'Zeit zum Handeln!'
-                });
+                if (UIManager && UIManager.showEventBanner) {
+                    UIManager.showEventBanner({
+                        name: '💰 Marktplatz erreicht!',
+                        banner: 'success',
+                        description: `${player.name} erhält Ressourcen!`
+                    });
+                }
+            } else {
+                // Switch to market view (single player)
+                ViewManager.switchView('market');
+
+                if (UIManager && UIManager.showEventBanner) {
+                    UIManager.showEventBanner({
+                        name: '💰 Marktplatz erreicht!',
+                        banner: 'success',
+                        description: 'Zeit zum Handeln!'
+                    });
+                }
             }
         } else if (field.type === this.fieldTypes.EVENT) {
             SoundManager.playSound('levelup');
 
-            // Trigger random event (could be expanded)
-            if (UIManager && UIManager.showEventBanner) {
-                UIManager.showEventBanner({
-                    name: '⚡ Event-Feld!',
-                    banner: 'info',
-                    description: 'Ein besonderes Ereignis tritt ein!'
-                });
+            // In multiplayer, give random resource
+            if (player) {
+                this.giveRandomResource(player);
+
+                if (UIManager && UIManager.showEventBanner) {
+                    UIManager.showEventBanner({
+                        name: '⚡ Event-Feld!',
+                        banner: 'info',
+                        description: `${player.name} erhält eine zufällige Ressource!`
+                    });
+                }
+            } else {
+                // Trigger random event (single player)
+                if (UIManager && UIManager.showEventBanner) {
+                    UIManager.showEventBanner({
+                        name: '⚡ Event-Feld!',
+                        banner: 'info',
+                        description: 'Ein besonderes Ereignis tritt ein!'
+                    });
+                }
             }
+        } else if (field.type === this.fieldTypes.NORMAL && player) {
+            // Normal field in multiplayer: give 1 random resource
+            this.giveRandomResource(player, 1);
+        }
+    },
+
+    /**
+     * Give market resources to player
+     */
+    giveMarketResources(player) {
+        const resources = Object.keys(StateManager.gameState.resources);
+        const randomResource = resources[Math.floor(Math.random() * resources.length)];
+
+        player.addToHand(randomResource, 2);
+        console.log(`💰 ${player.name} erhält 2x ${randomResource} vom Marktplatz`);
+
+        if (typeof PlayerManager !== 'undefined') {
+            PlayerManager.updateUI();
+        }
+    },
+
+    /**
+     * Give random resource to player
+     */
+    giveRandomResource(player, amount = 1) {
+        const resources = Object.keys(StateManager.gameState.resources);
+        const randomResource = resources[Math.floor(Math.random() * resources.length)];
+
+        player.addToHand(randomResource, amount);
+        console.log(`🎁 ${player.name} erhält ${amount}x ${randomResource}`);
+
+        if (typeof PlayerManager !== 'undefined') {
+            PlayerManager.updateUI();
         }
     },
 
