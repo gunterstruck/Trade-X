@@ -917,6 +917,74 @@ body.expert-mode .resource-icon {
     gap: 0.5rem;
 }
 
+/* ============================================
+   DRAGGABLE HAND CARDS WINDOW
+   ============================================ */
+
+.draggable-hand-cards {
+    position: fixed !important;
+    bottom: 82px;
+    right: 10px;
+    width: 400px;
+    height: 400px;
+    max-width: 95vw;
+    max-height: 95vh;
+    z-index: 60;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hand-cards-header {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95));
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 0.75rem 1rem;
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hand-cards-header:active {
+    cursor: grabbing;
+}
+
+.hand-cards-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #3b82f6;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Make content area scrollable and fill remaining space */
+.draggable-hand-cards #active-player-hud {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* Adjust hand cards grid for square layout */
+.draggable-hand-cards .hand-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .draggable-hand-cards {
+        width: 90vw;
+        height: 90vw;
+        max-width: 400px;
+        max-height: 400px;
+    }
+
+    .draggable-hand-cards .hand-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 .hand-card {
     background: rgba(30, 41, 59, 0.9);
     border: 2px solid rgba(148, 163, 184, 0.3);

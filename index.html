@@ -354,7 +354,10 @@
         </div>
 
         <!-- Active Player HUD (Replaces Handelsinterface in Board View) -->
-        <div id="board-player-hud" class="glass-panel rounded-xl" style="position: fixed; bottom: 82px; left: 10px; right: 10px; max-height: 30vh; z-index: 60; display: none;">
+        <div id="board-player-hud" class="glass-panel rounded-xl draggable-hand-cards" style="display: none;">
+            <div id="hand-cards-titlebar" class="hand-cards-header">
+                <span class="hand-cards-title">🃏 Deine Handkarten</span>
+            </div>
             <div id="active-player-hud">
                 <!-- Content will be dynamically loaded by PlayerManager -->
             </div>

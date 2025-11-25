@@ -106,12 +106,20 @@ const PlayerManager = {
     activePlayerIndex: 0,
     gameStarted: false,
 
+    // Draggable hand cards properties
+    isDraggingHandCards: false,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    handCardsElement: null,
+    handCardsTitlebar: null,
+
     /**
      * Initialize player manager
      */
     init() {
         console.log('👥 PlayerManager initialisiert');
         this.setupPlayers();
+        this.initDraggableHandCards();
     },
 
     /**
@@ -442,7 +450,6 @@ const PlayerManager = {
 
         hudEl.innerHTML = `
             <div class="hud-section">
-                <h3 class="text-sm font-bold text-blue-300 mb-2">🃏 Deine Handkarten</h3>
                 <div class="hand-cards-grid">
                     ${handHTML || '<div class="text-gray-500 text-sm">Keine Karten</div>'}
                 </div>
@@ -515,5 +522,210 @@ const PlayerManager = {
         // Check if player has done required actions
         // For now, just end turn
         this.endTurn();
+    },
+
+    /**
+     * Initialize draggable hand cards functionality
+     */
+    initDraggableHandCards() {
+        this.handCardsElement = document.getElementById('board-player-hud');
+        this.handCardsTitlebar = document.getElementById('hand-cards-titlebar');
+
+        if (!this.handCardsElement || !this.handCardsTitlebar) {
+            console.warn('Hand cards draggable elements not found');
+            return;
+        }
+
+        // Mouse events
+        this.handCardsTitlebar.addEventListener('mousedown', this.onHandCardsDragStart.bind(this));
+        document.addEventListener('mousemove', this.onHandCardsDrag.bind(this));
+        document.addEventListener('mouseup', this.onHandCardsDragEnd.bind(this));
+
+        // Touch events for mobile
+        this.handCardsTitlebar.addEventListener('touchstart', this.onHandCardsTouchStart.bind(this));
+        document.addEventListener('touchmove', this.onHandCardsTouchMove.bind(this));
+        document.addEventListener('touchend', this.onHandCardsTouchEnd.bind(this));
+
+        // Prevent text selection
+        this.handCardsTitlebar.addEventListener('selectstart', (e) => e.preventDefault());
+
+        // Load saved position
+        this.loadHandCardsPosition();
+
+        console.log('✅ Hand cards draggable initialized');
+    },
+
+    /**
+     * Mouse drag start for hand cards
+     */
+    onHandCardsDragStart(e) {
+        // Don't drag if clicking on a card
+        if (e.target.closest('.hand-card') || e.target.closest('.action-btn')) {
+            return;
+        }
+
+        this.isDraggingHandCards = true;
+        const rect = this.handCardsElement.getBoundingClientRect();
+        this.dragOffsetX = e.clientX - rect.left;
+        this.dragOffsetY = e.clientY - rect.top;
+
+        this.handCardsTitlebar.style.cursor = 'grabbing';
+        this.handCardsElement.style.transition = 'none';
+    },
+
+    /**
+     * Mouse drag move for hand cards
+     */
+    onHandCardsDrag(e) {
+        if (!this.isDraggingHandCards) return;
+
+        e.preventDefault();
+        const x = e.clientX - this.dragOffsetX;
+        const y = e.clientY - this.dragOffsetY;
+
+        this.setHandCardsPosition(x, y);
+    },
+
+    /**
+     * Mouse drag end for hand cards
+     */
+    onHandCardsDragEnd() {
+        if (!this.isDraggingHandCards) return;
+
+        this.isDraggingHandCards = false;
+        this.handCardsTitlebar.style.cursor = 'grab';
+        this.handCardsElement.style.transition = '';
+
+        this.saveHandCardsPosition();
+        this.ensureHandCardsInViewport();
+    },
+
+    /**
+     * Touch drag start for hand cards
+     */
+    onHandCardsTouchStart(e) {
+        // Don't drag if touching a card
+        if (e.target.closest('.hand-card') || e.target.closest('.action-btn')) {
+            return;
+        }
+
+        this.isDraggingHandCards = true;
+        const touch = e.touches[0];
+        const rect = this.handCardsElement.getBoundingClientRect();
+        this.dragOffsetX = touch.clientX - rect.left;
+        this.dragOffsetY = touch.clientY - rect.top;
+
+        this.handCardsElement.style.transition = 'none';
+    },
+
+    /**
+     * Touch drag move for hand cards
+     */
+    onHandCardsTouchMove(e) {
+        if (!this.isDraggingHandCards) return;
+
+        e.preventDefault();
+        const touch = e.touches[0];
+        const x = touch.clientX - this.dragOffsetX;
+        const y = touch.clientY - this.dragOffsetY;
+
+        this.setHandCardsPosition(x, y);
+    },
+
+    /**
+     * Touch drag end for hand cards
+     */
+    onHandCardsTouchEnd() {
+        if (!this.isDraggingHandCards) return;
+
+        this.isDraggingHandCards = false;
+        this.handCardsElement.style.transition = '';
+
+        this.saveHandCardsPosition();
+        this.ensureHandCardsInViewport();
+    },
+
+    /**
+     * Set hand cards window position
+     */
+    setHandCardsPosition(x, y) {
+        this.handCardsElement.style.left = `${x}px`;
+        this.handCardsElement.style.top = `${y}px`;
+        this.handCardsElement.style.bottom = 'auto';
+        this.handCardsElement.style.right = 'auto';
+    },
+
+    /**
+     * Ensure hand cards window stays within viewport
+     */
+    ensureHandCardsInViewport() {
+        const rect = this.handCardsElement.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let x = rect.left;
+        let y = rect.top;
+        let adjusted = false;
+
+        // Check right edge
+        if (rect.right > viewportWidth) {
+            x = viewportWidth - rect.width - 10;
+            adjusted = true;
+        }
+
+        // Check left edge
+        if (x < 10) {
+            x = 10;
+            adjusted = true;
+        }
+
+        // Check bottom edge (account for bottom nav bar)
+        if (rect.bottom > viewportHeight - 72) {
+            y = viewportHeight - rect.height - 82;
+            adjusted = true;
+        }
+
+        // Check top edge
+        if (y < 50) {
+            y = 50;
+            adjusted = true;
+        }
+
+        if (adjusted) {
+            this.setHandCardsPosition(x, y);
+        }
+    },
+
+    /**
+     * Save hand cards position to localStorage
+     */
+    saveHandCardsPosition() {
+        const rect = this.handCardsElement.getBoundingClientRect();
+        const position = {
+            x: rect.left,
+            y: rect.top
+        };
+
+        try {
+            localStorage.setItem('tradeXHandCardsPosition', JSON.stringify(position));
+        } catch (error) {
+            console.warn('Failed to save hand cards position:', error);
+        }
+    },
+
+    /**
+     * Load hand cards position from localStorage
+     */
+    loadHandCardsPosition() {
+        try {
+            const saved = localStorage.getItem('tradeXHandCardsPosition');
+            if (saved) {
+                const position = JSON.parse(saved);
+                this.setHandCardsPosition(position.x, position.y);
+                this.ensureHandCardsInViewport();
+            }
+        } catch (error) {
+            console.warn('Failed to load hand cards position:', error);
+        }
     }
 };
