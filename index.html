@@ -422,6 +422,10 @@
             UIManager.initChart();
             UIManager.initSeasonalChart();
             StateManager.init();
+
+            // Initialize PlayerManager for draggable functionality
+            PlayerManager.init();
+
             SoundManager.playSound('click');
             setTimeout(() => {
                 if (ModeManager.currentMode === 'expert') UIManager.showEventBanner({ name: "Handelsplatz bereit!", banner: 'success', description: "🚀 Viel Erfolg beim Handeln!" });
