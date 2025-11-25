@@ -66,10 +66,10 @@ const ViewManager = {
     onBoardViewActivated() {
         console.log('🎲 Board View aktiviert');
 
-        // Show board player HUD
+        // Show board player HUD with flex layout
         const boardHUD = document.getElementById('board-player-hud');
         if (boardHUD) {
-            boardHUD.style.display = 'block';
+            boardHUD.style.display = 'flex';
         }
 
         // Update player UI if PlayerManager is available

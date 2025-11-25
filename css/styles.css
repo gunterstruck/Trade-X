@@ -718,6 +718,11 @@ body.expert-mode .resource-icon {
     pointer-events: auto;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    cursor: grab;
+}
+
+.player-corner:active {
+    cursor: grabbing;
 }
 
 /* Player Corner Positions */
@@ -765,6 +770,7 @@ body.expert-mode .resource-icon {
     margin-bottom: 0.5rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    user-select: none;
 }
 
 .player-avatar {

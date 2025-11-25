@@ -113,6 +113,12 @@ const PlayerManager = {
     handCardsElement: null,
     handCardsTitlebar: null,
 
+    // Draggable player corners
+    isDraggingPlayerCorner: false,
+    draggingCornerElement: null,
+    cornerDragOffsetX: 0,
+    cornerDragOffsetY: 0,
+
     /**
      * Initialize player manager
      */
@@ -120,6 +126,7 @@ const PlayerManager = {
         console.log('👥 PlayerManager initialisiert');
         this.setupPlayers();
         this.initDraggableHandCards();
+        this.initDraggablePlayerCorners();
     },
 
     /**
@@ -726,6 +733,223 @@ const PlayerManager = {
             }
         } catch (error) {
             console.warn('Failed to load hand cards position:', error);
+        }
+    },
+
+    /**
+     * Initialize draggable player corners functionality
+     */
+    initDraggablePlayerCorners() {
+        // Add drag functionality to all player corners
+        for (let i = 1; i <= 4; i++) {
+            const cornerElement = document.getElementById(`player-corner-${i}`);
+            if (cornerElement) {
+                // Mouse events
+                cornerElement.addEventListener('mousedown', this.onPlayerCornerDragStart.bind(this));
+
+                // Touch events
+                cornerElement.addEventListener('touchstart', this.onPlayerCornerTouchStart.bind(this));
+
+                // Prevent text selection
+                cornerElement.addEventListener('selectstart', (e) => e.preventDefault());
+            }
+        }
+
+        // Global mouse/touch move and end events
+        document.addEventListener('mousemove', this.onPlayerCornerDrag.bind(this));
+        document.addEventListener('mouseup', this.onPlayerCornerDragEnd.bind(this));
+        document.addEventListener('touchmove', this.onPlayerCornerTouchMove.bind(this));
+        document.addEventListener('touchend', this.onPlayerCornerTouchEnd.bind(this));
+
+        // Load saved positions
+        this.loadPlayerCornersPositions();
+
+        console.log('✅ Player corners draggable initialized');
+    },
+
+    /**
+     * Mouse drag start for player corner
+     */
+    onPlayerCornerDragStart(e) {
+        // Don't drag if clicking on interactive elements
+        if (e.target.closest('.rack-slot.filled') || e.target.closest('.engine-icon')) {
+            return;
+        }
+
+        this.isDraggingPlayerCorner = true;
+        this.draggingCornerElement = e.currentTarget;
+
+        const rect = this.draggingCornerElement.getBoundingClientRect();
+        this.cornerDragOffsetX = e.clientX - rect.left;
+        this.cornerDragOffsetY = e.clientY - rect.top;
+
+        this.draggingCornerElement.style.transition = 'none';
+    },
+
+    /**
+     * Mouse drag move for player corner
+     */
+    onPlayerCornerDrag(e) {
+        if (!this.isDraggingPlayerCorner || !this.draggingCornerElement) return;
+
+        e.preventDefault();
+        const x = e.clientX - this.cornerDragOffsetX;
+        const y = e.clientY - this.cornerDragOffsetY;
+
+        this.setPlayerCornerPosition(this.draggingCornerElement, x, y);
+    },
+
+    /**
+     * Mouse drag end for player corner
+     */
+    onPlayerCornerDragEnd() {
+        if (!this.isDraggingPlayerCorner || !this.draggingCornerElement) return;
+
+        this.isDraggingPlayerCorner = false;
+        this.draggingCornerElement.style.transition = '';
+
+        this.savePlayerCornerPosition(this.draggingCornerElement);
+        this.ensurePlayerCornerInViewport(this.draggingCornerElement);
+
+        this.draggingCornerElement = null;
+    },
+
+    /**
+     * Touch drag start for player corner
+     */
+    onPlayerCornerTouchStart(e) {
+        // Don't drag if touching interactive elements
+        if (e.target.closest('.rack-slot.filled') || e.target.closest('.engine-icon')) {
+            return;
+        }
+
+        this.isDraggingPlayerCorner = true;
+        this.draggingCornerElement = e.currentTarget;
+
+        const touch = e.touches[0];
+        const rect = this.draggingCornerElement.getBoundingClientRect();
+        this.cornerDragOffsetX = touch.clientX - rect.left;
+        this.cornerDragOffsetY = touch.clientY - rect.top;
+
+        this.draggingCornerElement.style.transition = 'none';
+    },
+
+    /**
+     * Touch drag move for player corner
+     */
+    onPlayerCornerTouchMove(e) {
+        if (!this.isDraggingPlayerCorner || !this.draggingCornerElement) return;
+
+        e.preventDefault();
+        const touch = e.touches[0];
+        const x = touch.clientX - this.cornerDragOffsetX;
+        const y = touch.clientY - this.cornerDragOffsetY;
+
+        this.setPlayerCornerPosition(this.draggingCornerElement, x, y);
+    },
+
+    /**
+     * Touch drag end for player corner
+     */
+    onPlayerCornerTouchEnd() {
+        if (!this.isDraggingPlayerCorner || !this.draggingCornerElement) return;
+
+        this.isDraggingPlayerCorner = false;
+        this.draggingCornerElement.style.transition = '';
+
+        this.savePlayerCornerPosition(this.draggingCornerElement);
+        this.ensurePlayerCornerInViewport(this.draggingCornerElement);
+
+        this.draggingCornerElement = null;
+    },
+
+    /**
+     * Set player corner position
+     */
+    setPlayerCornerPosition(element, x, y) {
+        element.style.left = `${x}px`;
+        element.style.top = `${y}px`;
+        element.style.right = 'auto';
+        element.style.bottom = 'auto';
+    },
+
+    /**
+     * Ensure player corner stays within viewport
+     */
+    ensurePlayerCornerInViewport(element) {
+        const rect = element.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let x = rect.left;
+        let y = rect.top;
+        let adjusted = false;
+
+        // Check right edge
+        if (rect.right > viewportWidth) {
+            x = viewportWidth - rect.width - 10;
+            adjusted = true;
+        }
+
+        // Check left edge
+        if (x < 10) {
+            x = 10;
+            adjusted = true;
+        }
+
+        // Check bottom edge (account for bottom nav bar)
+        if (rect.bottom > viewportHeight - 72) {
+            y = viewportHeight - rect.height - 82;
+            adjusted = true;
+        }
+
+        // Check top edge (account for top notice bar)
+        if (y < 50) {
+            y = 50;
+            adjusted = true;
+        }
+
+        if (adjusted) {
+            this.setPlayerCornerPosition(element, x, y);
+        }
+    },
+
+    /**
+     * Save player corner position to localStorage
+     */
+    savePlayerCornerPosition(element) {
+        const cornerId = element.id;
+        const rect = element.getBoundingClientRect();
+        const position = {
+            x: rect.left,
+            y: rect.top
+        };
+
+        try {
+            localStorage.setItem(`tradeX_${cornerId}_position`, JSON.stringify(position));
+        } catch (error) {
+            console.warn('Failed to save player corner position:', error);
+        }
+    },
+
+    /**
+     * Load all player corners positions from localStorage
+     */
+    loadPlayerCornersPositions() {
+        for (let i = 1; i <= 4; i++) {
+            const cornerElement = document.getElementById(`player-corner-${i}`);
+            if (cornerElement) {
+                try {
+                    const saved = localStorage.getItem(`tradeX_player-corner-${i}_position`);
+                    if (saved) {
+                        const position = JSON.parse(saved);
+                        this.setPlayerCornerPosition(cornerElement, position.x, position.y);
+                        this.ensurePlayerCornerInViewport(cornerElement);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to load position for player-corner-${i}:`, error);
+                }
+            }
         }
     }
 };
