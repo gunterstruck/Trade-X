@@ -1,5 +1,5 @@
 // Service Worker für Trade-X PWA
-const CACHE_VERSION = 'trade-x-v1.2.5';
+const CACHE_VERSION = 'trade-x-v1.2.6';
 const CACHE_NAME = `trade-x-cache-${CACHE_VERSION}`;
 
 // Ressourcen, die beim Install gecacht werden sollen
